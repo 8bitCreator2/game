@@ -193,6 +193,17 @@
         <button id="gainStar">Gain Star</button>
         <button id="buyStar1">Buy Static Upgrade 1</button>
       </article>
+
+      <article class="card" id="coreCard" hidden>
+        <div class="label">Core Layer</div>
+        <div class="value" id="cores">0</div>
+        <p class="muted" id="coreInfo"></p>
+        <button id="coreU1">Core Upgrade 1</button>
+        <button id="coreU2">Core Upgrade 2</button>
+        <button id="coreU3">Core Upgrade 3</button>
+        <button id="coreU4">Core Upgrade 4</button>
+        <button id="coreU5">Core Upgrade 5</button>
+      </article>
     </section>
 
     <section class="upgrades">
@@ -266,7 +277,10 @@
       subUpgrades: [0, 0, 0],
       baseCosts: [9, 28, 72, 150, 950],
       tierUnlocked: false,
-      subUnlocked: [false, false, false]
+      subUnlocked: [false, false, false],
+      cores: 0,
+      coreAllocations: [0, 0, 0, 0, 0],
+      coreInitGranted: false
     };
 
     const SAVE_KEY = 'stardust_incremental_save_v1';
@@ -282,7 +296,10 @@
       upgrades: [0, 0, 0, 0, 0],
       subUpgrades: [0, 0, 0],
       tierUnlocked: false,
-      subUnlocked: [false, false, false]
+      subUnlocked: [false, false, false],
+      cores: 0,
+      coreAllocations: [0, 0, 0, 0, 0],
+      coreInitGranted: false
     });
 
     function applyState(state) {
@@ -303,6 +320,12 @@
         const v = state.subUpgrades[i];
         return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
       }) : safe.subUpgrades;
+      game.cores = Number.isFinite(state.cores) ? Math.max(0, Math.floor(state.cores)) : safe.cores;
+      game.coreAllocations = Array.isArray(state.coreAllocations) ? safe.coreAllocations.map((_, i) => {
+        const v = state.coreAllocations[i];
+        return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+      }) : safe.coreAllocations;
+      game.coreInitGranted = state.coreInitGranted === true;
       game.tierUnlocked = state.tierUnlocked === true || game.tier >= 1 || game.rank >= 5;
       game.subUnlocked = Array.isArray(state.subUnlocked) ? safe.subUnlocked.map((_, i) => {
         const v = state.subUnlocked[i];
@@ -313,6 +336,9 @@
       game.subUnlocked[0] = game.subUnlocked[0] || game.rank >= 5 || game.subUpgrades[0] > 0;
       game.subUnlocked[1] = game.subUnlocked[1] || game.tier >= 1 || game.subUpgrades[1] > 0;
       game.subUnlocked[2] = game.subUnlocked[2] || game.rank >= 7 || game.subUpgrades[2] > 0;
+      game.coreInitGranted = game.coreInitGranted || game.rank >= 8 || game.cores > 0;
+      const usedCores = game.coreAllocations.reduce((a, b) => a + b, 0);
+      if (usedCores > game.cores) game.cores = usedCores;
     }
 
     function buildSavePayload() {
@@ -326,6 +352,9 @@
         subUpgrades: game.subUpgrades,
         tierUnlocked: game.tierUnlocked,
         subUnlocked: game.subUnlocked,
+        cores: game.cores,
+        coreAllocations: game.coreAllocations,
+        coreInitGranted: game.coreInitGranted,
         savedAt: Date.now()
       };
     }
@@ -428,6 +457,16 @@ ${document.documentElement.outerHTML}`;
     const autoU2Unlocked = () => game.rank >= 8;
     const starLayerUnlocked = () => game.rank >= 13 || game.stars > 0 || game.starUpgrades[0] > 0;
     const starRequirement = () => 1e12;
+    const coreUnlocked = () => game.rank >= 8 || game.coreInitGranted || game.cores > 0;
+    const usedCores = () => game.coreAllocations.reduce((a, b) => a + b, 0);
+    const freeCores = () => Math.max(0, game.cores - usedCores());
+    const coreBoostMultiplier = (index) => 1 + game.coreAllocations[index] * 0.25;
+    const allocateCore = (index) => {
+      if (!coreUnlocked()) return;
+      if (freeCores() <= 0) return;
+      game.coreAllocations[index] += 1;
+      render();
+    };
     const upgrade5Cap = () => (game.tier >= 1 ? 100 : 5) + game.starUpgrades[0] * 2;
 
     const rankRequirementU4Level = () => {
@@ -451,7 +490,7 @@ ${document.documentElement.outerHTML}`;
       const preSoftcap = Math.min(lvl, 9) * 35;
       const postLevels = Math.max(0, lvl - 9);
       const postSoftcap = postLevels * 5;
-      return preSoftcap + postSoftcap;
+      return (preSoftcap + postSoftcap) * coreBoostMultiplier(3);
     };
 
     const stabilizerMultiplier = () => 1 + stabilizerBasePercent() / 100;
@@ -523,7 +562,8 @@ ${document.documentElement.outerHTML}`;
           extraReduce += 0.0048 / (1 + lateIndex * 0.75);
         }
       }
-      const totalReduce = Math.min(0.7, primaryReduce + extraReduce);
+      const coreU5Factor = 1 + (coreBoostMultiplier(4) - 1) * 0.7;
+      const totalReduce = Math.min(0.85, (primaryReduce + extraReduce) * coreU5Factor);
       return 1 - totalReduce;
     };
 
@@ -558,8 +598,8 @@ ${document.documentElement.outerHTML}`;
     const sub3Requirement = () => (game.subUpgrades[2] + 1) * 6;
 
     const upgrade2BasePercentRaw = () => {
-      const base = 20;
-      const calibrationBoost = 1 + game.upgrades[2] * 0.08;
+      const base = 20 * coreBoostMultiplier(1);
+      const calibrationBoost = 1 + game.upgrades[2] * 0.08 * coreBoostMultiplier(2);
       const stabilizerBoost = stabilizerMultiplier() * stabilizerRankBoost();
       return base * calibrationBoost * stabilizerBoost;
     };
@@ -594,7 +634,7 @@ ${document.documentElement.outerHTML}`;
     };
 
     const currentBaseGeneration = () => {
-      const u1Base = (1 + game.upgrades[0]) * sub1Multiplier() * sub3U1Multiplier();
+      const u1Base = (1 + game.upgrades[0]) * sub1Multiplier() * sub3U1Multiplier() * coreBoostMultiplier(0);
       return u1Base * rankGenerationMultiplier() * tierU3ToU1Boost() * pacingBoost();
     };
 
@@ -683,6 +723,7 @@ ${document.documentElement.outerHTML}`;
       if (game.stardust < starRequirement()) return;
       game.stardust -= starRequirement();
       game.stars = 1;
+      if (coreUnlocked()) game.cores += 1;
       render();
     }
 
@@ -716,6 +757,10 @@ ${document.documentElement.outerHTML}`;
 
     function render() {
       if (game.rank >= 5 && !game.tierUnlocked) game.tierUnlocked = true;
+      if (game.rank >= 8 && !game.coreInitGranted) {
+        game.coreInitGranted = true;
+        game.cores += 1;
+      }
       if (game.rank >= 5) game.subUnlocked[0] = true;
       if (game.tier >= 1) game.subUnlocked[1] = true;
       if (game.rank >= 7) game.subUnlocked[2] = true;
@@ -763,6 +808,16 @@ ${document.documentElement.outerHTML}`;
       document.getElementById('sub2Card').hidden = !sub2Unlocked();
       document.getElementById('sub3Card').hidden = !sub3Unlocked();
       document.getElementById('starCard').hidden = !starLayerUnlocked();
+      document.getElementById('coreCard').hidden = !coreUnlocked();
+      if (coreUnlocked()) {
+        document.getElementById('cores').textContent = format(game.cores, 0);
+        document.getElementById('coreInfo').innerHTML = [
+          `Free cores: <b>${format(freeCores(), 0)}</b> · Used: <b>${format(usedCores(), 0)}</b>`,
+          'Each core boosts one chosen upgrade by +25% (stacking).',
+          `U1 x${format(coreBoostMultiplier(0), 2)} · U2 x${format(coreBoostMultiplier(1), 2)} · U3 x${format(coreBoostMultiplier(2), 2)} · U4 x${format(coreBoostMultiplier(3), 2)} · U5 x${format(coreBoostMultiplier(4), 2)}`
+        ].join('<br>');
+      }
+
       if (starLayerUnlocked()) {
         const starInfo = [
           `Requirement: ${format(starRequirement())} stardust for 1 star (max 1).`,
@@ -794,6 +849,7 @@ ${document.documentElement.outerHTML}`;
         `Tier synergy: <b>x${format(tierBoost, 3)}</b>`,
         `Subupgrade 2 falloff cut: <b>-${format(sub2FalloffReduction(), 3)}</b>`,
         `Upgrade 5 cap: <b>${upgrade5Cap()}</b>`,
+        `Core boosts: <b>U1 x${format(coreBoostMultiplier(0), 2)} · U2 x${format(coreBoostMultiplier(1), 2)} · U3 x${format(coreBoostMultiplier(2), 2)} · U4 x${format(coreBoostMultiplier(3), 2)} · U5 x${format(coreBoostMultiplier(4), 2)}</b>`,
         `Pacing boost: <b>x${format(paceBoost, 3)}</b>`,
         `U4 stabilizer base: <b>x${format(stabilizerBase, 3)}</b>`,
         `U2 total multiplier: <b>x${format(u2CurrentMultiplier, 3)}</b>`,
@@ -819,7 +875,7 @@ ${document.documentElement.outerHTML}`;
         `${game.rank >= 5 ? '✓' : '·'} Rank 5: Unlock Tier system + Subupgrade 1 (permanent)`,
         `${game.rank >= 6 ? '✓' : '·'} Rank 6: Rank pacing becomes multiplicative`,
         `${game.rank >= 7 ? '✓' : '·'} Rank 7: Unlock Subupgrade 3`,
-        `${game.rank >= 8 ? '✓' : '·'} Rank 8: Pacing cap becomes x1K + auto-buy Upgrade 2`,
+        `${game.rank >= 8 ? '✓' : '·'} Rank 8: Pacing cap becomes x1K + unlock Cores`,
         `${game.rank >= 9 ? '✓' : '·'} Rank 9: Tier pacing becomes multiplicative`,
         `${game.rank >= 13 ? '✓' : '·'} Rank 13: Unlock Star Layer`
       ];
@@ -914,6 +970,14 @@ ${document.documentElement.outerHTML}`;
       if (sub3Btn) {
         sub3Btn.disabled = !sub3Unlocked() || game.upgrades[2] < sub3Requirement();
       }
+
+      ['coreU1', 'coreU2', 'coreU3', 'coreU4', 'coreU5'].forEach((id, i) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.disabled = !coreUnlocked() || freeCores() <= 0;
+        btn.textContent = `Core Upgrade ${i + 1} (${format(game.coreAllocations[i], 0)})`;
+      });
+
     }
 
     document.getElementById('buy1').addEventListener('click', () => buyUpgrade(0));
@@ -939,6 +1003,11 @@ ${document.documentElement.outerHTML}`;
     document.getElementById('downloadGame').addEventListener('click', () => { downloadGameHtml(); render(); });
     document.getElementById('gainStar').addEventListener('click', gainStar);
     document.getElementById('buyStar1').addEventListener('click', buyStar1);
+    document.getElementById('coreU1').addEventListener('click', () => allocateCore(0));
+    document.getElementById('coreU2').addEventListener('click', () => allocateCore(1));
+    document.getElementById('coreU3').addEventListener('click', () => allocateCore(2));
+    document.getElementById('coreU4').addEventListener('click', () => allocateCore(3));
+    document.getElementById('coreU5').addEventListener('click', () => allocateCore(4));
     document.getElementById('hardReset').addEventListener('click', () => {
       if (confirm('Hard reset? This will erase your save and progress.')) {
         hardResetGame();
