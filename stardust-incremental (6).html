@@ -2065,19 +2065,19 @@ ${document.documentElement.outerHTML}`;
       }
     }
 
-    function rankUp() {
+    function rankUp(shouldRender = true) {
       if (!rankUnlocked()) return;
       if (game.upgrades[3] < rankRequirementU4Level()) return;
       game.rank += 1;
       if (game.rank >= 31) {
-        render();
+        if (shouldRender) render();
         return;
       }
       game.stardust = 0;
       const u7 = game.upgrades[6] || 0;
       const u8 = game.upgrades[7] || 0;
       game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8];
-      render();
+      if (shouldRender) render();
     }
 
     function tierUp() {
