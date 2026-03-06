@@ -1006,9 +1006,9 @@
       </article>
 
       <article class="card" id="u9Card" style="display: none;">
-        <div class="upgrade-title">Upgrade 9 · Cost Reduction <span class="bonus-tag" style="color:#ffaa00">-2%/lvl</span></div>
-        <p class="muted">Reduces costs of upgrades 1-8 by 2% per level. Max 95% reduction.</p>
-        <p class="muted" id="u9">lvl 0 · current cost reduction ∞% · next 1.00M SE</p>
+        <div class="upgrade-title">Upgrade 9 · Hyper Tempo <span class="bonus-tag" style="color:#ffaa00">x2.5/lvl</span></div>
+        <p class="muted">Massively boosts pacing multiplier. Cost: Star Energy.</p>
+        <p class="muted" id="u9">lvl 0 · current pacing x1 · next 1.00M SE</p>
         <button id="buy9">Buy</button>
       </article>
 
@@ -1032,7 +1032,7 @@
         </article>
         <article class="card">
           <div class="label">Tier Milestones</div>
-          <div class="muted" id="milestonesTier" aria-live="polite"><b>Tier Milestones</b><br>✓ Tier 1: U1+Sub1 free autobuy + U5 cap to 100<br>✓ Tier 2: U1 3 levels/tick + used cores boost pacing<br>✓ Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer<br>✓ Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap<br>✓ Tier 5: U6 autobuy + U5 free<br>✓ Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8<br>✓ Tier 7: Stars Core 3^x formula</div>
+          <div class="muted" id="milestonesTier" aria-live="polite"><b>Tier Milestones</b><br>✓ Tier 1: U1+Sub1 free autobuy + U5 cap to 100<br>✓ Tier 2: U1 3 levels/tick + used cores boost pacing<br>✓ Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer<br>✓ Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap<br>✓ Tier 5: U6 autobuy + U5 free<br>✓ Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8<br>✓ Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9</div>
         </article>
         <article class="card">
           <div class="label">Challenge Rewards</div>
@@ -1055,6 +1055,11 @@
           <button id="coreS1" disabled="">Core Subupgrade 1 (0/5)</button>
           <button id="coreS2" class="flash" disabled="">Core Subupgrade 2 (5/5)</button>
           <button id="coreS3" disabled="">Core Subupgrade 3 (0/5)</button>
+          <div id="coreTier7Section" hidden>
+            <button id="coreS4" disabled="">Core Subupgrade 4 (0/5)</button>
+            <button id="coreU6" disabled="">Core Upgrade 6 (0/5)</button>
+            <button id="coreU7" disabled="">Core Upgrade 7 (0/5)</button>
+          </div>
           <div id="corePacingSection">
             <button id="coreP1" class="flash" disabled="">Pacing+ (5/5) +15%</button>
             <button id="coreP2" class="flash" disabled="">Pacing++ (5/5) +10%</button>
@@ -1156,7 +1161,7 @@
         tierUnlocked: false,
         subUnlocked: [false, false, false, false, false, false],
         cores: 0,
-        coreAllocations: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        coreAllocations: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         coreInitGranted: false,
         corePacingClaimedExp: 0,
         coreEnhance1: 0,
@@ -1382,10 +1387,10 @@ ${document.documentElement.outerHTML}`;
     const upgrade7Unlocked = () => game.stars >= 1;
     const upgrade8Unlocked = () => game.stars >= 1;
 
-    const starEnergyMultiplier = () => 1 + (game.upgrades[6] || 0) * 0.4;
-    const starEnergyPacing = () => 1 + (game.upgrades[6] || 0) * 0.1;
+    const starEnergyMultiplier = () => 1 + (game.upgrades[6] || 0) * 0.4 * coreBoostMultiplier(13);
+    const starEnergyPacing = () => 1 + (game.upgrades[6] || 0) * 0.1 * coreBoostMultiplier(13);
     const starEnergyU3Boost = () => 1 + (game.upgrades[7] || 0) * 0.2;
-    const upgrade6PacingBoost = () => 1 + (game.upgrades[5] || 0) * 0.05;
+    const upgrade6PacingBoost = () => 1 + (game.upgrades[5] || 0) * 0.05 * coreBoostMultiplier(12);
     const sub1Unlocked = () => game.subUnlocked[0] || game.rank >= 5;
     const sub2Unlocked = () => game.subUnlocked[1] || game.tier >= 1;
     const sub3Unlocked = () => game.subUnlocked[2] || game.rank >= 7;
@@ -1418,7 +1423,7 @@ ${document.documentElement.outerHTML}`;
       const cap = corePacingCap();
       if (game.coreAllocations[index] >= cap) return;
       game.coreAllocations[index] += 1;
-      const cardIds = ['coreU1', 'coreU2', 'coreU3', 'coreU4', 'coreU5', 'coreS1', 'coreS2', 'coreS3', 'coreP1', 'coreP2', 'coreP3'];
+      const cardIds = ['coreU1', 'coreU2', 'coreU3', 'coreU4', 'coreU5', 'coreS1', 'coreS2', 'coreS3', 'coreP1', 'coreP2', 'coreP3', 'coreS4', 'coreU6', 'coreU7'];
       flashCard(cardIds[index]);
       render();
     };
@@ -1515,7 +1520,7 @@ ${document.documentElement.outerHTML}`;
       game.upgrades = [game.upgrades[0], 0, 0, 0, 0, 0, game.upgrades[6], game.upgrades[7], game.upgrades[8] || 0];
       game.subUpgrades = [game.subUpgrades[0], 0, 0, 0, 0, 0, 0];
       game.cores = 0;
-      game.coreAllocations = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      game.coreAllocations = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       game.coreInitGranted = keepCoreInit;
       game.coreEnhance1 = keepCoreEnhance1;
       game.coreEnhance2 = keepCoreEnhance2;
@@ -1646,7 +1651,7 @@ ${document.documentElement.outerHTML}`;
     const starAutobuyU2 = () => false;
 
     const respecCores = () => {
-      game.coreAllocations = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      game.coreAllocations = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       game.stardust = 0;
       const u7 = game.upgrades[6] || 0;
       const u8 = game.upgrades[7] || 0;
@@ -1693,7 +1698,7 @@ ${document.documentElement.outerHTML}`;
 
     const sub1Multiplier = () => (1 + game.subUpgrades[0] * 0.02) * coreSubBoostMultiplier(5);
     const sub3U1Multiplier = () => (1 + game.subUpgrades[2] * 0.04) * coreSubBoostMultiplier(7);
-    const sub4U3Multiplier = () => game.subUnlocked[5] ? (1 + game.subUpgrades[5] * 0.2) : 1;
+    const sub4U3Multiplier = () => game.subUnlocked[5] ? (1 + game.subUpgrades[5] * 0.2) * coreSubBoostMultiplier(11) : 1;
 
     const getU2Exponent = () => {
       const base = 0.7 + (game.rank >= 3 ? 0.03 : 0);
@@ -1744,7 +1749,7 @@ ${document.documentElement.outerHTML}`;
     };
 
     const pacingBoost = () => {
-      const baseBoost = pacingBreakdown().total * starsCorePacingBoost() * upgrade6PacingBoost() * corePacingUpgradeMultiplier() * coreEnhance1Multiplier() * starEnergyPacing() * starUpgrade4Multiplier();
+      const baseBoost = pacingBreakdown().total * starsCorePacingBoost() * upgrade6PacingBoost() * corePacingUpgradeMultiplier() * coreEnhance1Multiplier() * starEnergyPacing() * starUpgrade4Multiplier() * upgrade9PacingMultiplier();
       const capped = Math.min(baseBoost, 1e100);
       return Number.isFinite(capped) && capped > 0 ? capped : 1;
     };
@@ -1807,8 +1812,11 @@ ${document.documentElement.outerHTML}`;
       return safePow(1.18, extra) * (1 + extra * 0.1 + extra * extra * 0.015);
     };
 
-    const upgrade9Unlocked = () => false;
-    const upgrade9CostReduction = () => 0;
+    const upgrade9Unlocked = () => game.tier >= 7;
+    const upgrade9PacingMultiplier = () => {
+      if (!upgrade9Unlocked()) return 1;
+      return safePow(2.5, game.upgrades[8] || 0);
+    };
 
     const upgradeCost = (index) => {
       if (index >= 6 && index < 8) return 0;
@@ -1826,8 +1834,7 @@ ${document.documentElement.outerHTML}`;
       const scaled = base * postScalingMultiplier(index, level);
       let finalCost = scaled;
       if (index !== 4) finalCost *= costReducer();
-      if (index >= 0 && index <= 7) finalCost *= (1 - upgrade9CostReduction());
-      finalCost /= sub5CostDivisor();
+            finalCost /= sub5CostDivisor();
       if (index === 1 && hasU2NoWaste()) finalCost *= 0.5;
       return Math.floor(finalCost);
     };
@@ -1838,9 +1845,6 @@ ${document.documentElement.outerHTML}`;
       const growth = [1.5, 1.8][index - 6];
       if (!base || !growth) return 0;
       let cost = base * safePow(growth, game.upgrades[index]);
-      if (upgrade9Unlocked()) {
-        cost *= (1 - upgrade9CostReduction());
-      }
       return Math.floor(cost);
     };
 
@@ -2065,6 +2069,10 @@ ${document.documentElement.outerHTML}`;
       if (!rankUnlocked()) return;
       if (game.upgrades[3] < rankRequirementU4Level()) return;
       game.rank += 1;
+      if (game.rank >= 31) {
+        render();
+        return;
+      }
       game.stardust = 0;
       const u7 = game.upgrades[6] || 0;
       const u8 = game.upgrades[7] || 0;
@@ -2209,8 +2217,7 @@ ${document.documentElement.outerHTML}`;
       }
       if (upgrade9Unlocked()) {
         const u9Level = game.upgrades[8] || 0;
-        const reduction = upgrade9CostReduction() * 100;
-        document.getElementById('u9').textContent = `lvl ${u9Level} · current cost reduction ${format(reduction)}% · next ${format(upgradeCost(8))} SE`;
+        document.getElementById('u9').textContent = `lvl ${u9Level} · current pacing x${format(upgrade9PacingMultiplier(), 2)} · next ${format(upgradeCost(8))} SE`;
         document.getElementById('buy9').disabled = game.starEnergy < upgradeCost(8);
       }
 
@@ -2344,8 +2351,21 @@ ${document.documentElement.outerHTML}`;
           'Each core boosts one chosen upgrade by +25% (stacking).',
           `Pacing cores claimed up to ≈1.5^${format(game.corePacingClaimedExp, 0)}`,
           hasCorePacingUpgrades() ? `Core Pacing Bonus: x${format(corePacingUpgradeMultiplier(), 3)}` : '',
-          `U1 x${format(coreBoostMultiplier(0), 2)} · U2 x${format(coreBoostMultiplier(1), 2)} · U3 x${format(coreBoostMultiplier(2), 2)} · U4 x${format(coreBoostMultiplier(3), 2)} · U5 x${format(coreBoostMultiplier(4), 2)}<br>Sub1 x${format(coreSubBoostMultiplier(5), 2)} · Sub2 x${format(coreSubBoostMultiplier(6), 2)} · Sub3 x${format(coreSubBoostMultiplier(7), 2)}`
+          `U1 x${format(coreBoostMultiplier(0), 2)} · U2 x${format(coreBoostMultiplier(1), 2)} · U3 x${format(coreBoostMultiplier(2), 2)} · U4 x${format(coreBoostMultiplier(3), 2)} · U5 x${format(coreBoostMultiplier(4), 2)} · U6 x${format(coreBoostMultiplier(12), 2)} · U7 x${format(coreBoostMultiplier(13), 2)}<br>Sub1 x${format(coreSubBoostMultiplier(5), 2)} · Sub2 x${format(coreSubBoostMultiplier(6), 2)} · Sub3 x${format(coreSubBoostMultiplier(7), 2)} · Sub4 x${format(coreSubBoostMultiplier(11), 2)}`
         ].filter(x => x).join('<br>');
+
+        const tier7Section = document.getElementById('coreTier7Section');
+        if (tier7Section) {
+          tier7Section.hidden = !tier7Unlocked();
+          if (tier7Unlocked()) {
+            document.getElementById('coreS4').textContent = `Core Subupgrade 4 (${format(game.coreAllocations[11], 0)}/5)`;
+            document.getElementById('coreU6').textContent = `Core Upgrade 6 (${format(game.coreAllocations[12], 0)}/5)`;
+            document.getElementById('coreU7').textContent = `Core Upgrade 7 (${format(game.coreAllocations[13], 0)}/5)`;
+            document.getElementById('coreS4').disabled = freeCores() <= 0 || game.coreAllocations[11] >= 5;
+            document.getElementById('coreU6').disabled = freeCores() <= 0 || game.coreAllocations[12] >= 5;
+            document.getElementById('coreU7').disabled = freeCores() <= 0 || game.coreAllocations[13] >= 5;
+          }
+        }
 
         const coreRespecCard = document.getElementById('coreRespecCard');
         if (coreRespecCard) {
@@ -2442,7 +2462,7 @@ ${document.documentElement.outerHTML}`;
         `Subupgrade 2 (U2): exponent ${format(getU2Exponent(), 3)} (base 0.7${game.rank >= 3 ? '+0.03(R3)' : ''}+${format(game.subUpgrades[1] * 0.01, 3)}(Sub2)+${format(Math.min(game.challenge2Completions * 0.01, 0.1), 3)}(C2))`,
         `Upgrade 5 cap: <b>${upgrade5Cap() ?? 'None (Rank 26+)'}</b> (Effect max 99%)`,
         `Upgrade 6 Tempo: <b>x${format(upgrade6PacingBoost(), 3)}</b> (+${game.upgrades[5] * 4}% pacing)`,
-        `Core boosts: <b>U1 x${format(coreBoostMultiplier(0), 2)} · U2 x${format(coreBoostMultiplier(1), 2)} · U3 x${format(coreBoostMultiplier(2), 2)} · U4 x${format(coreBoostMultiplier(3), 2)} · U5 x${format(coreBoostMultiplier(4), 2)}<br>Sub1 x${format(coreSubBoostMultiplier(5), 2)} · Sub2 x${format(coreSubBoostMultiplier(6), 2)} · Sub3 x${format(coreSubBoostMultiplier(7), 2)}</b>`,
+        `Core boosts: <b>U1 x${format(coreBoostMultiplier(0), 2)} · U2 x${format(coreBoostMultiplier(1), 2)} · U3 x${format(coreBoostMultiplier(2), 2)} · U4 x${format(coreBoostMultiplier(3), 2)} · U5 x${format(coreBoostMultiplier(4), 2)} · U6 x${format(coreBoostMultiplier(12), 2)} · U7 x${format(coreBoostMultiplier(13), 2)}<br>Sub1 x${format(coreSubBoostMultiplier(5), 2)} · Sub2 x${format(coreSubBoostMultiplier(6), 2)} · Sub3 x${format(coreSubBoostMultiplier(7), 2)} · Sub4 x${format(coreSubBoostMultiplier(11), 2)}</b>`,
         `Stars Core Stardust: <b>x${format(starsCoreStardustBoost(), 3)}</b>`,
         `Pacing boost: <b>x${format(paceBoost, 3)}</b>`,
         `U4 stabilizer base: <b>x${format(stabilizerBase, 3)}</b>`,
@@ -2486,7 +2506,7 @@ ${document.documentElement.outerHTML}`;
         `${game.tier >= 4 ? '✓' : '·'} Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap`,
         `${game.tier >= 5 ? '✓' : '·'} Tier 5: U6 autobuy + U5 free`,
         `${game.tier >= 6 ? '✓' : '·'} Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8`,
-        `${game.tier >= 7 ? '✓' : '·'} Tier 7: Stars Core 3^x formula`
+        `${game.tier >= 7 ? '✓' : '·'} Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9`
       ];
       const challengeMilestones = [
         '<b>Challenge Milestones</b>',
@@ -2572,7 +2592,7 @@ ${document.documentElement.outerHTML}`;
         document.getElementById('sub3').textContent = `lvl ${game.subUpgrades[2]} · Upgrade 1 post-Sub1 boost +${format(game.subUpgrades[2] * 2.5)}% · auto-buys at U3 lvl ${sub3Requirement()}`;
       }
       if (sub4Unlocked()) {
-        document.getElementById('sub4').textContent = `lvl ${game.subUpgrades[5]} · Upgrade 3 boost +${format(game.subUpgrades[5] * 15)}% · auto-buys at U4 lvl ${sub4Requirement()}`;
+        document.getElementById('sub4').textContent = `lvl ${game.subUpgrades[5]} · Upgrade 3 boost +${format(game.subUpgrades[5] * 15)}% (core x${format(coreSubBoostMultiplier(11), 2)}) · auto-buys at U4 lvl ${sub4Requirement()}`;
       }
       if (sub5Unlocked()) {
         const lvl = game.subUpgrades[4];
@@ -2678,6 +2698,9 @@ ${document.documentElement.outerHTML}`;
     document.getElementById('coreP1').addEventListener('click', () => allocateCore(8));
     document.getElementById('coreP2').addEventListener('click', () => allocateCore(9));
     document.getElementById('coreP3').addEventListener('click', () => allocateCore(10));
+    document.getElementById('coreS4').addEventListener('click', () => allocateCore(11));
+    document.getElementById('coreU6').addEventListener('click', () => allocateCore(12));
+    document.getElementById('coreU7').addEventListener('click', () => allocateCore(13));
     document.getElementById('respecCores').addEventListener('click', () => {
       if (confirm('Respec cores? This resets stardust, upgrades, and subupgrades like a rank reset.')) {
         respecCores();
