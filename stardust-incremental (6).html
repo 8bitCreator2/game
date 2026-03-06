@@ -2069,6 +2069,10 @@ ${document.documentElement.outerHTML}`;
       if (!rankUnlocked()) return;
       if (game.upgrades[3] < rankRequirementU4Level()) return;
       game.rank += 1;
+      if (game.rank >= 31) {
+        render();
+        return;
+      }
       game.stardust = 0;
       const u7 = game.upgrades[6] || 0;
       const u8 = game.upgrades[7] || 0;
