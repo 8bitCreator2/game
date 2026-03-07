@@ -847,6 +847,28 @@
       animation: radiationInnerParticles 0.9s linear;
     }
 
+    #radiationCard.radiation-live {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      animation: radiationOutlineGlow 2.6s ease-in-out infinite;
+    }
+
+    #radiationCard.radiation-live::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      pointer-events: none;
+      border-radius: 6px;
+      z-index: 0;
+      mix-blend-mode: screen;
+      background-image:
+        radial-gradient(circle, rgba(57,255,20,0.45) 1px, transparent 2px),
+        radial-gradient(circle, rgba(120,255,120,0.28) 1px, transparent 2px);
+      background-size: 18px 18px, 26px 26px;
+      animation: radiationInnerParticles 2.4s linear infinite;
+    }
+
     #starCard.star-aura::after {
       background-image:
         radial-gradient(circle, rgba(255,215,0,0.7) 1px, transparent 2px),
@@ -2630,7 +2652,10 @@ ${document.documentElement.outerHTML}`;
         radiationTabBtn.style.display = radiationUnlocked() ? 'inline-block' : 'none';
       }
       const radiationCard = document.getElementById('radiationCard');
-      if (radiationCard) radiationCard.hidden = !radiationUnlocked();
+      if (radiationCard) {
+        radiationCard.hidden = !radiationUnlocked();
+        radiationCard.classList.toggle('radiation-live', radiationUnlocked());
+      }
       if (radiationUnlocked()) {
         document.getElementById('radiation').textContent = format(game.radiation, 2);
         const now = performance.now();
@@ -2643,11 +2668,12 @@ ${document.documentElement.outerHTML}`;
         const rps = radiationGainPerSecond();
         document.getElementById('radiationInfo').innerHTML =
           `Radiation gain: <b>${format(rps, 3)}/s</b><br>` +
-          `Gamma Condenser: <b>x${format(radiationUpgradeMultiplier1(), 2)}</b> (${game.radiationUpgrades[0]} lvls)<br>` +
-          `Neutrino Loop: <b>x${format(radiationUpgradeMultiplier2(), 2)}</b> (${game.radiationUpgrades[1]} lvls)<br>` +
-          `Chrono Decay: <b>x${format(radiationUpgradeMultiplier3(), 2)}</b> (${game.radiationUpgrades[2]} lvls)<br>` +
-          `Irradiated Cores: <b>x${format(radiationUpgradeMultiplier4(), 2)}</b> (${game.radiationUpgrades[3]} lvls)<br>` +
-          `Atomic Dusting: <b>x${format(radiationUpgradeMultiplier5(), 2)}</b> (${game.radiationUpgrades[4]} lvls)`;
+          `Formula: <b>((stars-4)*0.12 + log10(stardust)/45) × Synchrotron</b><br>` +
+          `Gamma Condenser: <b>x${format(radiationUpgradeMultiplier1(), 2)}</b> (${game.radiationUpgrades[0]} lvls) · formula: <b>1 + 0.25*lvl</b><br>` +
+          `Neutrino Loop: <b>x${format(radiationUpgradeMultiplier2(), 2)}</b> (${game.radiationUpgrades[1]} lvls) · formula: <b>1 + 0.15*lvl</b><br>` +
+          `Chrono Decay: <b>x${format(radiationUpgradeMultiplier3(), 2)}</b> (${game.radiationUpgrades[2]} lvls) · formula: <b>1 + 0.12*lvl</b><br>` +
+          `Irradiated Cores: <b>x${format(radiationUpgradeMultiplier4(), 2)}</b> (${game.radiationUpgrades[3]} lvls) · formula: <b>1 + 0.10*lvl</b><br>` +
+          `Atomic Dusting: <b>x${format(radiationUpgradeMultiplier5(), 2)}</b> (${game.radiationUpgrades[4]} lvls) · formula: <b>1 + 0.08*lvl</b>`;
         const names = [
           'Gamma Condenser: +25% stardust gen/lvl',
           'Neutrino Loop: +15% star energy gain/lvl',
