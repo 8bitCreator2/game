@@ -2273,9 +2273,11 @@ ${document.documentElement.outerHTML}`;
     function runAutoBuyers() {
       if (autoU1Unlocked() || tier3Autobuy()) {
         const baseRate = game.tier >= 2 ? 3 : 1;
+        const cap = upgrade1Cap();
         const currentLevel = game.upgrades[0];
-        if (currentLevel < 5000 + game.tier * 100) {
+        if (cap === null || currentLevel < cap) {
           game.upgrades[0] += baseRate;
+          if (cap !== null && game.upgrades[0] > cap) game.upgrades[0] = cap;
           if (game.upgrades[0] >= sub1Requirement()) {
             game.subUpgrades[0] += 1;
           }
