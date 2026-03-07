@@ -1204,7 +1204,7 @@
       <section class="grid">
         <article class="card" id="radiationCard">
           <div class="label">Radiation Layer</div>
-          <div class="value" id="radiation" aria-live="polite">0</div>
+          <div class="value" id="radiation" aria-live="polite" style="color:#39ff14">0</div>
           <p class="muted" id="radiationInfo">Locked: Reach 5 Stars to unlock radiation.</p>
           <div class="subtab" id="radiationUpgrades">
             <div class="upgrade-title">Radiation Upgrades</div>
@@ -1684,6 +1684,9 @@ ${document.documentElement.outerHTML}`;
     let lastRadiation = 0;
     let lastFusion = 0;
     let lastStars = 0;
+    let lastRadiationAnimAt = 0;
+    let lastFusionAnimAt = 0;
+    let lastStarAnimAt = 0;
 
     function animateClassOnce(elementId, className, durationMs = 500) {
       const el = document.getElementById(elementId);
@@ -2373,8 +2376,12 @@ ${document.documentElement.outerHTML}`;
       document.getElementById('tier').textContent = game.tier;
       document.getElementById('stars').textContent = game.stars;
       if (game.stars !== lastStars) {
-        animateClassOnce('starCard', 'star-aura', 700);
-        animateValueChange('stars');
+        const now = performance.now();
+        if (now - lastStarAnimAt > 1500) {
+          animateClassOnce('starCard', 'star-aura', 700);
+          animateValueChange('stars');
+          lastStarAnimAt = now;
+        }
         lastStars = game.stars;
       }
 
@@ -2626,10 +2633,12 @@ ${document.documentElement.outerHTML}`;
       if (radiationCard) radiationCard.hidden = !radiationUnlocked();
       if (radiationUnlocked()) {
         document.getElementById('radiation').textContent = format(game.radiation, 2);
-        if (Math.abs(game.radiation - lastRadiation) > Math.max(0.05, lastRadiation * 0.02)) {
+        const now = performance.now();
+        if (Math.abs(game.radiation - lastRadiation) > Math.max(0.2, lastRadiation * 0.08) && (now - lastRadiationAnimAt > 1200)) {
           animateValueChange('radiation');
           animateClassOnce('radiationCard', 'radiation-aura', 700);
           lastRadiation = game.radiation;
+          lastRadiationAnimAt = now;
         }
         const rps = radiationGainPerSecond();
         document.getElementById('radiationInfo').innerHTML =
@@ -2664,10 +2673,12 @@ ${document.documentElement.outerHTML}`;
       ];
       if (nuclearFusionUnlocked()) {
         document.getElementById('fusion').textContent = format(game.fusion, 2);
-        if (Math.abs(game.fusion - lastFusion) > Math.max(0.03, lastFusion * 0.02)) {
+        const nowFusion = performance.now();
+        if (Math.abs(game.fusion - lastFusion) > Math.max(0.08, lastFusion * 0.08) && (nowFusion - lastFusionAnimAt > 1400)) {
           animateValueChange('fusion');
           animateClassOnce('radiationCard', 'radiation-aura', 700);
           lastFusion = game.fusion;
+          lastFusionAnimAt = nowFusion;
         }
         const fps = fusionGainPerSecond();
         document.getElementById('fusionInfo').innerHTML =
