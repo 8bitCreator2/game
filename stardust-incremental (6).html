@@ -955,6 +955,13 @@
         <button id="tierUp" disabled="">Tier up</button>
       </article>
 
+      <article class="card" id="tetrCard">
+        <div class="label">Tetr</div>
+        <div class="value" id="tetr" aria-live="polite">0</div>
+        <p class="muted" id="tetrReq">Requirement: Tier 7 (+2 each Tetr). Tetr resets tier, rank, stardust, and upgrades.</p>
+        <button id="tetrUp" disabled="">Tetr up</button>
+      </article>
+
       <article class="card">
         <div class="label">Quick Guide</div>
         <div class="muted" id="quickGuide" aria-live="polite">
@@ -1126,7 +1133,7 @@
         </article>
         <article class="card">
           <div class="label">Tier Milestones</div>
-          <div class="muted" id="milestonesTier" aria-live="polite"><b>Tier Milestones</b><br>✓ Tier 1: U1+Sub1 free autobuy + U5 cap to 100<br>✓ Tier 2: U1 3 levels/tick + used cores boost pacing<br>✓ Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer<br>✓ Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap<br>✓ Tier 5: U6 autobuy + U5 free<br>✓ Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8<br>✓ Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9<br>· Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling</div>
+          <div class="muted" id="milestonesTier" aria-live="polite"><b>Tier Milestones</b><br>✓ Tier 1: U1+Sub1 free autobuy + U5 cap to 100<br>✓ Tier 2: U1 3 levels/tick + used cores boost pacing<br>✓ Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer<br>✓ Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap<br>✓ Tier 5: U6 autobuy + U5 free<br>✓ Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8<br>✓ Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9<br>· Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling<br>· Tetr 1: Stars Core Lab unlocked (4 new augments)</div>
         </article>
         <article class="card">
           <div class="label">Challenge Rewards</div>
@@ -1188,6 +1195,14 @@
             <div id="starsCoreProgressFill" style="height: 100%; background: linear-gradient(90deg, rgb(255, 215, 0), rgb(255, 170, 0)); width: 24.0055%;"></div>
           </div>
           <p class="muted" id="starsCoreStarReq" style="margin-top:4px;">Next Star at level: <b>70</b> (8 levels to go)</p>
+          <div class="subtab" id="starsCoreAugments" style="display:none; margin-top:8px;">
+            <div class="upgrade-title">Stars Core Lab (Tetr 1+)</div>
+            <p class="muted" id="starsCoreAugmentsInfo">Unlocks powerful Stars Core augments at Tetr 1.</p>
+            <button id="buySCAug0">Core Prism: +50% Stars Core Stardust/lvl (lvl 0) - 1.00e30 stardust</button>
+            <button id="buySCAug1">Core Tempo: +35% Stars Core Pacing/lvl (lvl 0) - 5.00e30 stardust</button>
+            <button id="buySCAug2">Core Collapse: +3 rank requirement reduction/lvl (lvl 0) - 2.00e31 stardust</button>
+            <button id="buySCAug3">Core Compression: -20% Stars Core XP requirement/lvl (lvl 0) - 8.00e31 stardust</button>
+          </div>
         </article>
       </section>
     </div>
@@ -1297,6 +1312,8 @@
         radiationUpgrades: [0, 0, 0, 0, 0],
         fusion: 0,
         fusionUpgrades: [0, 0, 0],
+        tetr: 0,
+        starsCoreAugments: [0, 0, 0, 0],
       };
     }
 
@@ -1365,6 +1382,15 @@
         : safe.fusionUpgrades;
       while (game.fusionUpgrades.length < 3) game.fusionUpgrades.push(0);
       while (game.fusionUpgrades.length > 3) game.fusionUpgrades.pop();
+      game.tetr = Number.isFinite(state.tetr) ? Math.max(0, Math.floor(state.tetr)) : safe.tetr;
+      game.starsCoreAugments = Array.isArray(state.starsCoreAugments)
+        ? safe.starsCoreAugments.map((_, i) => {
+          const v = state.starsCoreAugments[i];
+          return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+        })
+        : safe.starsCoreAugments;
+      while (game.starsCoreAugments.length < 4) game.starsCoreAugments.push(0);
+      while (game.starsCoreAugments.length > 4) game.starsCoreAugments.pop();
       
       while (game.upgrades.length < 9) game.upgrades.push(0);
       while (game.upgrades.length > 9) game.upgrades.pop();
@@ -1403,6 +1429,8 @@
         radiationUpgrades: game.radiationUpgrades,
         fusion: game.fusion,
         fusionUpgrades: game.fusionUpgrades,
+        tetr: game.tetr,
+        starsCoreAugments: game.starsCoreAugments,
         savedAt: Date.now()
       };
     }
@@ -1528,6 +1556,23 @@ ${document.documentElement.outerHTML}`;
     const rankUnlocked = () => game.upgrades[3] >= 5;
     const tierUnlocked = () => game.tierUnlocked || game.rank >= 5;
     const tierRequirementRank = () => 5 + game.tier * 4;
+    const tetrUnlocked = () => game.tier >= 7 || game.tetr > 0;
+    const tetrRequirementTier = () => 7 + game.tetr * 2;
+    const starsCoreAugmentsUnlocked = () => game.tetr >= 1;
+    const starsCoreAugmentCosts = [1e30, 5e30, 2e31, 8e31];
+    const starsCoreAugmentCost = (index) => Math.floor((starsCoreAugmentCosts[index] || 0) * safePow(3, game.starsCoreAugments[index] || 0));
+    const starsCoreAugmentStardustMultiplier = () => 1 + (game.starsCoreAugments[0] || 0) * 0.5;
+    const starsCoreAugmentPacingMultiplier = () => 1 + (game.starsCoreAugments[1] || 0) * 0.35;
+    const starsCoreAugmentRankReduction = () => (game.starsCoreAugments[2] || 0) * 3;
+    const starsCoreAugmentXPDivisor = () => 1 + (game.starsCoreAugments[3] || 0) * 0.2;
+    function buyStarsCoreAugment(index) {
+      if (!starsCoreAugmentsUnlocked()) return;
+      const cost = starsCoreAugmentCost(index);
+      if (game.stardust < cost) return;
+      game.stardust -= cost;
+      game.starsCoreAugments[index] = (game.starsCoreAugments[index] || 0) + 1;
+      render();
+    }
     const upgrade5Unlocked = () => game.rank >= 1;
     const upgrade6Unlocked = () => game.rank >= 9;
     const upgrade7Unlocked = () => game.stars >= 1;
@@ -1622,16 +1667,15 @@ ${document.documentElement.outerHTML}`;
     const starsCoreLevel = () => game.starsCoreLevel || 0;
     const starsCoreXP = () => game.stardust;
     const starsCoreXPForLevel = (level) => {
-      if (game.tier >= 7) return Math.pow(3, level);
-      if (game.tier >= 4) return Math.pow(5, level);
-      return Math.pow(10, level);
+      const base = game.tier >= 7 ? Math.pow(3, level) : (game.tier >= 4 ? Math.pow(5, level) : Math.pow(10, level));
+      return base / starsCoreAugmentXPDivisor();
     };
     const starsCoreTotalXPForNextLevel = () => starsCoreXPForLevel(starsCoreLevel() + 1);
     const starsCoreProgress = () => starsCoreXP() / starsCoreTotalXPForNextLevel();
 
-    const starsCoreStardustBoost = () => (1 + starsCoreLevel() * 0.2) * starUpgrade5Multiplier();
-    const starsCorePacingBoost = () => 1 + Math.floor(starsCoreLevel() / 3) * 0.5;
-    const starsCoreRankReduction = () => Math.floor(starsCoreLevel() / 4) * 2;
+    const starsCoreStardustBoost = () => (1 + starsCoreLevel() * 0.2) * starUpgrade5Multiplier() * starsCoreAugmentStardustMultiplier();
+    const starsCorePacingBoost = () => (1 + Math.floor(starsCoreLevel() / 3) * 0.5) * starsCoreAugmentPacingMultiplier();
+    const starsCoreRankReduction = () => Math.floor(starsCoreLevel() / 4) * 2 + starsCoreAugmentRankReduction();
 
     const starsCoreLevelForNextStar = () => 30 + game.stars * 10;
     const starsCoreAtMaxForStar = () => starsCoreLevel() >= starsCoreLevelForNextStar();
@@ -2290,6 +2334,21 @@ ${document.documentElement.outerHTML}`;
       render();
     }
 
+    function tetrUp() {
+      if (!tetrUnlocked()) return;
+      if (game.tier < tetrRequirementTier()) return;
+      game.tetr += 1;
+      game.tier = 0;
+      game.rank = 0;
+      game.stardust = 0;
+      const u7 = game.upgrades[6] || 0;
+      const u8 = game.upgrades[7] || 0;
+      const u9 = game.upgrades[8] || 0;
+      game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, u9];
+      showToast(`⚛ Tetr ${game.tetr} reached!`, 'gold');
+      render();
+    }
+
     function startChallenge1() {
       if (!challengesUnlocked()) return;
       if (game.challengeActive) return;
@@ -2451,6 +2510,15 @@ ${document.documentElement.outerHTML}`;
         tierButton.disabled = game.rank < tierRequirementRank();
       }
 
+      const tetrCard = document.getElementById('tetrCard');
+      const tetrButton = document.getElementById('tetrUp');
+      if (tetrCard) tetrCard.hidden = !tetrUnlocked();
+      if (tetrUnlocked()) {
+        document.getElementById('tetr').textContent = format(game.tetr, 0);
+        document.getElementById('tetrReq').textContent = `Requirement: Tier ${tetrRequirementTier()} (+2 each Tetr). Tetr resets tier, rank, stardust, and upgrades.`;
+        tetrButton.disabled = game.tier < tetrRequirementTier();
+      }
+
       document.getElementById('u5Card').hidden = !upgrade5Unlocked();
       document.getElementById('u6Card').hidden = !upgrade6Unlocked();
       document.getElementById('sub1Card').hidden = !sub1Unlocked();
@@ -2537,6 +2605,26 @@ ${document.documentElement.outerHTML}`;
         document.getElementById('starsCoreStarReq').innerHTML = starsCoreAtMaxForStar()
           ? `<span style="color:#4ade80">★ READY TO GENERATE STAR ★</span>`
           : `Next Star at level: <b>${nextStarLevel}</b> (${levelsNeeded} levels to go)`;
+
+        const augWrap = document.getElementById('starsCoreAugments');
+        if (augWrap) augWrap.style.display = starsCoreAugmentsUnlocked() ? 'block' : 'none';
+        if (starsCoreAugmentsUnlocked()) {
+          document.getElementById('starsCoreAugmentsInfo').innerHTML =
+            `Lab bonuses: Stardust x<b>${format(starsCoreAugmentStardustMultiplier(), 2)}</b> · Pacing x<b>${format(starsCoreAugmentPacingMultiplier(), 2)}</b> · Rank -<b>${format(starsCoreAugmentRankReduction(), 0)}</b> · XP ÷<b>${format(starsCoreAugmentXPDivisor(), 2)}</b>`;
+          const labels = [
+            'Core Prism: +50% Stars Core Stardust/lvl',
+            'Core Tempo: +35% Stars Core Pacing/lvl',
+            'Core Collapse: +3 rank requirement reduction/lvl',
+            'Core Compression: -20% Stars Core XP requirement/lvl'
+          ];
+          for (let i = 0; i < 4; i++) {
+            const btn = document.getElementById('buySCAug' + i);
+            if (!btn) continue;
+            const cost = starsCoreAugmentCost(i);
+            btn.disabled = game.stardust < cost;
+            btn.textContent = `${labels[i]} (lvl ${game.starsCoreAugments[i] || 0}) - ${format(cost)} stardust`;
+          }
+        }
       }
 
       if (coreUnlocked()) {
@@ -2799,7 +2887,8 @@ ${document.documentElement.outerHTML}`;
         `${game.tier >= 5 ? '✓' : '·'} Tier 5: U6 autobuy + U5 free`,
         `${game.tier >= 6 ? '✓' : '·'} Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8`,
         `${game.tier >= 7 ? '✓' : '·'} Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9`,
-        `${game.tier >= 8 ? '✓' : '·'} Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling`
+        `${game.tier >= 8 ? '✓' : '·'} Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling`,
+        `${game.tetr >= 1 ? '✓' : '·'} Tetr 1: Stars Core Lab unlocked (4 new augments)`
       ];
       const challengeMilestones = [
         '<b>Challenge Milestones</b>',
@@ -2957,6 +3046,7 @@ ${document.documentElement.outerHTML}`;
     document.getElementById('buy9').addEventListener('click', () => buyUpgrade(8));
     document.getElementById('rankUp').addEventListener('click', rankUp);
     document.getElementById('tierUp').addEventListener('click', tierUp);
+    document.getElementById('tetrUp').addEventListener('click', tetrUp);
     document.getElementById('saveNow').addEventListener('click', () => { saveGame(); render(); });
     document.getElementById('exportSave').addEventListener('click', () => { downloadSaveFile(); render(); });
     document.getElementById('importSave').addEventListener('click', () => {
@@ -2980,6 +3070,10 @@ ${document.documentElement.outerHTML}`;
     document.getElementById('buyStarUpgrade5').addEventListener('click', () => buyStarUpgrade(5));
     document.getElementById('buyStarUpgrade6').addEventListener('click', () => buyStarUpgrade(6));
     document.getElementById('buyStarUpgrade7').addEventListener('click', () => buyStarUpgrade(7));
+    document.getElementById('buySCAug0').addEventListener('click', () => buyStarsCoreAugment(0));
+    document.getElementById('buySCAug1').addEventListener('click', () => buyStarsCoreAugment(1));
+    document.getElementById('buySCAug2').addEventListener('click', () => buyStarsCoreAugment(2));
+    document.getElementById('buySCAug3').addEventListener('click', () => buyStarsCoreAugment(3));
     document.getElementById('buyRad0').addEventListener('click', () => buyRadiationUpgrade(0));
     document.getElementById('buyRad1').addEventListener('click', () => buyRadiationUpgrade(1));
     document.getElementById('buyRad2').addEventListener('click', () => buyRadiationUpgrade(2));
