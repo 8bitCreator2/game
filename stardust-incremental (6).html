@@ -1139,7 +1139,7 @@
         </article>
         <article class="card">
           <div class="label">Tier Milestones</div>
-          <div class="muted" id="milestonesTier" aria-live="polite"><b>Tier Milestones</b><br>✓ Tier 1: U1+Sub1 free autobuy + U5 cap to 100<br>✓ Tier 2: U1 3 levels/tick + used cores boost pacing<br>✓ Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer<br>✓ Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap<br>✓ Tier 5: U6 autobuy + U5 free<br>✓ Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8<br>✓ Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9<br>· Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling<br>· Tetr 1: Core cap 8 + unlock U8/Radiation core slots + Stars Core Lab (Radiation formula, XP divider, 4 augments)</div>
+          <div class="muted" id="milestonesTier" aria-live="polite"><b>Tier Milestones</b><br>✓ Tier 1: U1+Sub1 free autobuy + remove U1 6000 cap + U5 cap to 100<br>✓ Tier 2: U1 3 levels/tick + used cores boost pacing<br>✓ Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer<br>✓ Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap<br>✓ Tier 5: U6 autobuy + U5 free<br>✓ Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8<br>✓ Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9<br>· Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling<br>· Tetr 1: Core cap 8 + unlock U8/Radiation core slots + Stars Core Lab (Radiation formula, XP divider, 4 augments)</div>
         </article>
         <article class="card">
           <div class="label">Challenge Rewards</div>
@@ -1920,7 +1920,7 @@ ${document.documentElement.outerHTML}`;
       render();
     };
     const upgrade5Cap = () => (game.rank >= 26 ? null : (game.tier >= 1 ? 100 : 5));
-    const upgrade1Cap = () => (game.tier >= 10 ? 100000 : null);
+    const upgrade1Cap = () => (game.tier >= 10 ? 100000 : (game.tier >= 1 ? null : 6000));
 
     const rankRequirementU4Level = () => {
       const base = game.rank <= 4 ? 5 + game.rank * 2 : 13 + (game.rank - 4) * 3;
@@ -2912,7 +2912,7 @@ ${document.documentElement.outerHTML}`;
       ];
       const tierMilestones = [
         '<b>Tier Milestones</b>',
-        `${game.tier >= 1 ? '✓' : '·'} Tier 1: U1+Sub1 free autobuy + U5 cap to 100`,
+        `${game.tier >= 1 ? '✓' : '·'} Tier 1: U1+Sub1 free autobuy + remove U1 6000 cap + U5 cap to 100`,
         `${game.tier >= 2 ? '✓' : '·'} Tier 2: U1 3 levels/tick + used cores boost pacing`,
         `${game.tier >= 3 ? '✓' : '·'} Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer`,
         `${game.tier >= 4 ? '✓' : '·'} Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap`,
