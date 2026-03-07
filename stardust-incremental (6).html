@@ -2660,7 +2660,6 @@ ${document.documentElement.outerHTML}`;
         document.getElementById('radiation').textContent = format(game.radiation, 2);
         const now = performance.now();
         if (Math.abs(game.radiation - lastRadiation) > Math.max(0.2, lastRadiation * 0.08) && (now - lastRadiationAnimAt > 1200)) {
-          animateValueChange('radiation');
           animateClassOnce('radiationCard', 'radiation-aura', 700);
           lastRadiation = game.radiation;
           lastRadiationAnimAt = now;
