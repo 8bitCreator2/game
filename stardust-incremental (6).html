@@ -2492,7 +2492,8 @@ ${document.documentElement.outerHTML}`;
           `Stars: ${game.stars}/20`,
           `Reach Stars Core level ${starsCoreLevelForNextStar()} to generate star`,
           `After 3 stars: No resets (just +1 star +1 SE)`,
-          `${radiationUnlocked() ? '☢ Radiation unlocked at 5 stars' : 'Reach 5 stars to unlock Radiation layer'}`
+          `${radiationUnlocked() ? '☢ Radiation unlocked at 5 stars' : 'Reach 5 stars to unlock Radiation layer'}`,
+          `${nuclearFusionUnlocked() ? '⚛ Nuclear Fusion unlocked at 8 stars' : `Reach ${Math.max(0, 8 - game.stars)} more stars to unlock Nuclear Fusion`}`
         ];
         document.getElementById('starInfo').innerHTML = starInfo.join('<br>');
         document.getElementById('gainStar').disabled = game.stars >= 20 || !starsCoreAtMaxForStar();
@@ -2571,7 +2572,12 @@ ${document.documentElement.outerHTML}`;
       }
 
       const fusionSection = document.getElementById('fusionSection');
-      if (fusionSection) fusionSection.style.display = nuclearFusionUnlocked() ? 'block' : 'none';
+      if (fusionSection) fusionSection.style.display = radiationUnlocked() ? 'block' : 'none';
+      const fNames = [
+        'Fusion Matrix: +35% stardust gen/lvl',
+        'Synchrotron: +30% radiation gain/lvl',
+        'Plasma Rhythm: +20% pacing/lvl'
+      ];
       if (nuclearFusionUnlocked()) {
         document.getElementById('fusion').textContent = format(game.fusion, 2);
         const fps = fusionGainPerSecond();
@@ -2580,17 +2586,22 @@ ${document.documentElement.outerHTML}`;
           `Fusion Matrix: <b>x${format(fusionMultiplier1(), 2)}</b> (${game.fusionUpgrades[0]} lvls)<br>` +
           `Synchrotron: <b>x${format(fusionMultiplier2(), 2)}</b> (${game.fusionUpgrades[1]} lvls)<br>` +
           `Plasma Rhythm: <b>x${format(fusionMultiplier3(), 2)}</b> (${game.fusionUpgrades[2]} lvls)`;
-        const fNames = [
-          'Fusion Matrix: +35% stardust gen/lvl',
-          'Synchrotron: +30% radiation gain/lvl',
-          'Plasma Rhythm: +20% pacing/lvl'
-        ];
         for (let i = 0; i < 3; i++) {
           const btn = document.getElementById('buyFusion' + i);
           if (!btn) continue;
           const cost = Math.floor((fusionUpgradeCosts[i] || 0) * safePow(2.2, game.fusionUpgrades[i] || 0));
           btn.disabled = game.fusion < cost;
           btn.textContent = `${fNames[i]} (lvl ${game.fusionUpgrades[i] || 0}) - ${format(cost)} Fusion`;
+        }
+      } else if (radiationUnlocked()) {
+        document.getElementById('fusion').textContent = 'LOCKED';
+        document.getElementById('fusionInfo').innerHTML = `Locked: Reach <b>8 Stars</b> to unlock Nuclear Fusion (${Math.max(0, 8 - game.stars)} more).`;
+        for (let i = 0; i < 3; i++) {
+          const btn = document.getElementById('buyFusion' + i);
+          if (!btn) continue;
+          const cost = Math.floor((fusionUpgradeCosts[i] || 0) * safePow(2.2, game.fusionUpgrades[i] || 0));
+          btn.disabled = true;
+          btn.textContent = `${fNames[i]} (locked) - ${format(cost)} Fusion`;
         }
       }
 
