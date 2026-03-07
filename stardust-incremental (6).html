@@ -1920,7 +1920,7 @@ ${document.documentElement.outerHTML}`;
       render();
     };
     const upgrade5Cap = () => (game.rank >= 26 ? null : (game.tier >= 1 ? 100 : 5));
-    const upgrade1Cap = () => (game.tier >= 10 ? 100000 : (game.tier >= 1 ? null : 6000));
+    const upgrade1Cap = () => (game.tier >= 1 ? null : 6000);
 
     const rankRequirementU4Level = () => {
       const base = game.rank <= 4 ? 5 + game.rank * 2 : 13 + (game.rank - 4) * 3;
@@ -2920,7 +2920,6 @@ ${document.documentElement.outerHTML}`;
         `${game.tier >= 6 ? '✓' : '·'} Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8`,
         `${game.tier >= 7 ? '✓' : '·'} Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9`,
         `${game.tier >= 8 ? '✓' : '·'} Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling`,
-        `${game.tier >= 10 ? '✓' : '·'} Tier 10: Upgrade 1 cap becomes 100000`,
         `${game.tetr >= 1 ? '✓' : '·'} Tetr 1: Stars Core Lab unlocked (4 new augments)`
       ];
       const challengeMilestones = [
