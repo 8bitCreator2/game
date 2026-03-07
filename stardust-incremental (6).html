@@ -791,26 +791,75 @@
     }
 
 
-    @keyframes radiationPulse {
-      0% { box-shadow: 0 0 0 rgba(57, 255, 20, 0); transform: scale(1); }
-      50% { box-shadow: 0 0 20px rgba(57, 255, 20, 0.55); transform: scale(1.03); }
-      100% { box-shadow: 0 0 0 rgba(57, 255, 20, 0); transform: scale(1); }
+    @keyframes radiationOutlineGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(57, 255, 20, 0.25), inset 0 0 10px rgba(57, 255, 20, 0.08); border-color: rgba(57,255,20,0.45); }
+      50% { box-shadow: 0 0 22px rgba(57, 255, 20, 0.65), inset 0 0 18px rgba(57, 255, 20, 0.2); border-color: rgba(57,255,20,0.9); }
     }
 
-    @keyframes fusionPulse {
-      0% { box-shadow: 0 0 0 rgba(102, 227, 255, 0); transform: scale(1); }
-      50% { box-shadow: 0 0 20px rgba(102, 227, 255, 0.55); transform: scale(1.03); }
-      100% { box-shadow: 0 0 0 rgba(102, 227, 255, 0); transform: scale(1); }
+    @keyframes starOutlineGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.25), inset 0 0 10px rgba(255, 215, 0, 0.08); border-color: rgba(255,215,0,0.45); }
+      50% { box-shadow: 0 0 22px rgba(255, 215, 0, 0.7), inset 0 0 18px rgba(255, 215, 0, 0.2); border-color: rgba(255,215,0,0.95); }
     }
 
-    @keyframes starTwinkle {
-      0%, 100% { filter: brightness(1); transform: scale(1); }
-      50% { filter: brightness(1.35); transform: scale(1.04); }
+    @keyframes radiationInnerParticles {
+      0% { background-position: 0 0, 0 0; opacity: 0.45; }
+      50% { background-position: 14px -12px, -10px 10px; opacity: 0.8; }
+      100% { background-position: 28px -24px, -20px 20px; opacity: 0.45; }
     }
 
-    .radiation-burst { animation: radiationPulse 0.5s ease; }
-    .fusion-burst { animation: fusionPulse 0.5s ease; }
-    .star-twinkle { animation: starTwinkle 0.5s ease; }
+    @keyframes starInnerParticles {
+      0% { background-position: 0 0, 0 0; opacity: 0.4; }
+      50% { background-position: -12px 10px, 12px -12px; opacity: 0.85; }
+      100% { background-position: -24px 20px, 24px -24px; opacity: 0.4; }
+    }
+
+    #radiationCard.radiation-aura,
+    #starCard.star-aura {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    #radiationCard.radiation-aura {
+      animation: radiationOutlineGlow 0.7s ease;
+    }
+
+    #starCard.star-aura {
+      animation: starOutlineGlow 0.7s ease;
+    }
+
+    #radiationCard.radiation-aura::after,
+    #starCard.star-aura::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      pointer-events: none;
+      border-radius: 6px;
+      z-index: 0;
+      mix-blend-mode: screen;
+    }
+
+    #radiationCard.radiation-aura::after {
+      background-image:
+        radial-gradient(circle, rgba(57,255,20,0.55) 1px, transparent 2px),
+        radial-gradient(circle, rgba(120,255,120,0.35) 1px, transparent 2px);
+      background-size: 18px 18px, 24px 24px;
+      animation: radiationInnerParticles 0.9s linear;
+    }
+
+    #starCard.star-aura::after {
+      background-image:
+        radial-gradient(circle, rgba(255,215,0,0.7) 1px, transparent 2px),
+        radial-gradient(circle, rgba(255,244,170,0.45) 1px, transparent 2px);
+      background-size: 16px 16px, 26px 26px;
+      animation: starInnerParticles 0.9s linear;
+    }
+
+    #radiationCard > *,
+    #starCard > * {
+      position: relative;
+      z-index: 1;
+    }
 
     #starsCoreProgressFill { transition: width 0.3s ease; }
 
@@ -1605,27 +1654,8 @@ ${document.documentElement.outerHTML}`;
       game.starEnergy += 1;
       game.starEnergyUpgrades = keepSEUpgrades;
       
-      showStarAnimation();
       render();
     };
-
-    function showStarAnimation() {
-      const anim = document.createElement('div');
-      anim.innerHTML = '⭐';
-      anim.style.cssText = 'position:fixed;top:50%;left:50%;font-size:100px;z-index:9999;animation:starPop 2s forwards;pointer-events:none;';
-      document.body.appendChild(anim);
-      const sparkles = ['✨', '✦', '✧', '⭐'];
-      for (let i = 0; i < 6; i += 1) {
-        const sparkle = document.createElement('div');
-        sparkle.innerHTML = sparkles[i % sparkles.length];
-        const dx = (Math.random() - 0.5) * 260;
-        const dy = (Math.random() - 0.5) * 220;
-        sparkle.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(${dx}px, ${dy}px);font-size:${20 + Math.random()*18}px;z-index:9998;animation:starPop 1.5s forwards;pointer-events:none;opacity:0.9;`;
-        document.body.appendChild(sparkle);
-        setTimeout(() => sparkle.remove(), 1500);
-      }
-      setTimeout(() => anim.remove(), 2000);
-    }
 
     function showToast(message, type = 'default') {
       const existing = document.getElementById('toast');
@@ -2343,9 +2373,8 @@ ${document.documentElement.outerHTML}`;
       document.getElementById('tier').textContent = game.tier;
       document.getElementById('stars').textContent = game.stars;
       if (game.stars !== lastStars) {
-        animateClassOnce('starCard', 'star-twinkle', 500);
+        animateClassOnce('starCard', 'star-aura', 700);
         animateValueChange('stars');
-        if (game.stars > lastStars) showStarAnimation();
         lastStars = game.stars;
       }
 
@@ -2599,7 +2628,7 @@ ${document.documentElement.outerHTML}`;
         document.getElementById('radiation').textContent = format(game.radiation, 2);
         if (Math.abs(game.radiation - lastRadiation) > Math.max(0.05, lastRadiation * 0.02)) {
           animateValueChange('radiation');
-          animateClassOnce('radiationCard', 'radiation-burst', 500);
+          animateClassOnce('radiationCard', 'radiation-aura', 700);
           lastRadiation = game.radiation;
         }
         const rps = radiationGainPerSecond();
@@ -2637,7 +2666,7 @@ ${document.documentElement.outerHTML}`;
         document.getElementById('fusion').textContent = format(game.fusion, 2);
         if (Math.abs(game.fusion - lastFusion) > Math.max(0.03, lastFusion * 0.02)) {
           animateValueChange('fusion');
-          animateClassOnce('fusionSection', 'fusion-burst', 500);
+          animateClassOnce('radiationCard', 'radiation-aura', 700);
           lastFusion = game.fusion;
         }
         const fps = fusionGainPerSecond();
