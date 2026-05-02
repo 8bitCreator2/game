@@ -1727,6 +1727,8 @@ while (game.upgrades.length < 11) game.upgrades.push(0);
     function hardResetGame() {
       localStorage.removeItem(SAVE_KEY);
       applyState(defaultState());
+      game.subUpgrades[0] = 0;
+      game.subUpgrades[7] = 0;
       lastSavedAt = null;
       saveMessage = '';
       render();
@@ -1870,7 +1872,7 @@ ${document.documentElement.outerHTML}`;
     const radiationCoreMultiplier = () => coreBoostMultiplier(15);
     const upgrade6PacingBoost = () => 1 + (game.upgrades[5] || 0) * 0.05 * coreBoostMultiplier(12);
     const sub1Unlocked = () => game.subUnlocked[0] || game.rank >= 4;
-    const sub1bUnlocked = () => sub1Unlocked();
+    const sub1bUnlocked = () => game.rank >= 4;
     const sub2Unlocked = () => game.subUnlocked[1] || game.tier >= 1;
     const sub2bUnlocked = () => game.tier >= 2;
     const sub3Unlocked = () => game.subUnlocked[2] || game.tier >= 1;
