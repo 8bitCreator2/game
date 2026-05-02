@@ -1107,7 +1107,7 @@
             <button id="sub1aPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
           </p>
         </div>
-        <div class="subtab" id="sub1bCard" style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dotted #444;">
+        <div class="subtab" id="sub1bCard" hidden style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dotted #444;">
           <div class="upgrade-title" style="font-size: 0.6rem;"><span class="badge" style="background:#2a4a3a;color:#7d6;">S1b</span> Dust <span class="bonus-tag" style="color:#7d6">+3%/perk</span></div>
           <p class="muted" style="font-size: 0.55rem;">Stardust mult: +3% per perk.</p>
           <p style="margin: 0.2rem 0;">
@@ -3758,6 +3758,8 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
         labelEl.textContent = labels[i];
       });
 
+      document.getElementById('sub1bCard').hidden = !sub1bUnlocked();
+
       if (sub1Unlocked()) {
         const { u1, s1a, s1b } = normalizeS1Perks();
         const s1TotalMax = u1;
@@ -3768,7 +3770,6 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
         document.getElementById('sub1aPlus').disabled = s1a >= s1aMax;
         document.getElementById('sub1bMinus').disabled = s1b <= 0;
         document.getElementById('sub1bPlus').disabled = s1b >= s1TotalMax - s1a;
-        document.getElementById('sub1bCard').hidden = !sub1bUnlocked();
       }
       if (sub2Unlocked()) {
         const s2aMax = game.upgrades[1] || 0;
