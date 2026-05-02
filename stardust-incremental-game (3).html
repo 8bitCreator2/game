@@ -1596,20 +1596,8 @@
 while (game.upgrades.length < 11) game.upgrades.push(0);
       game.subUpgrades = Array.isArray(state.subUpgrades) ? safe.subUpgrades.map((_, i) => Math.floor(state.subUpgrades[i] || 0)) : safe.subUpgrades;
       while (game.subUpgrades.length < 10) game.subUpgrades.push(0);
-      // Fix S1 perks to respect unlock state and not exceed U1 level
-      const u1 = getU1Level();
-      let s1a = getS1aPerks();
-      let s1b = getS1bPerks();
-      if (!sub1bUnlocked()) {
-        s1a += s1b;
-        s1b = 0;
-      }
-      s1a = Math.max(0, Math.floor(s1a));
-      s1b = Math.max(0, Math.floor(s1b));
-      if (s1a > u1) s1a = u1;
-      if (s1b > u1 - s1a) s1b = Math.max(0, u1 - s1a);
-      game.subUpgrades[0] = s1a;
-      game.subUpgrades[7] = s1b;
+      // Normalize S1 perks for unlock state and caps
+      normalizeS1Perks();
       game.cores = Number.isFinite(state.cores) ? Math.max(0, Math.floor(state.cores)) : safe.cores;
       game.coreAllocations = Array.isArray(state.coreAllocations) ? safe.coreAllocations.map((_, i) => {
         const v = state.coreAllocations[i];
@@ -1882,7 +1870,7 @@ ${document.documentElement.outerHTML}`;
     const radiationCoreMultiplier = () => coreBoostMultiplier(15);
     const upgrade6PacingBoost = () => 1 + (game.upgrades[5] || 0) * 0.05 * coreBoostMultiplier(12);
     const sub1Unlocked = () => game.subUnlocked[0] || game.rank >= 4;
-    const sub1bUnlocked = () => game.rank >= 4;
+    const sub1bUnlocked = () => sub1Unlocked();
     const sub2Unlocked = () => game.subUnlocked[1] || game.tier >= 1;
     const sub2bUnlocked = () => game.tier >= 2;
     const sub3Unlocked = () => game.subUnlocked[2] || game.tier >= 1;
@@ -2290,6 +2278,23 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
     const getS1bPerks = () => Math.max(0, game.subUpgrades[7] || 0);
     const getFreePerks = () => 0;
 
+    function normalizeS1Perks() {
+      const u1 = Math.max(0, Math.floor(getU1Level()));
+      let s1a = Math.max(0, Math.floor(getS1aPerks()));
+      let s1b = Math.max(0, Math.floor(getS1bPerks()));
+      if (!sub1bUnlocked()) {
+        s1a += s1b;
+        s1b = 0;
+      }
+      if (s1a > u1) s1a = u1;
+      const s1bMax = Math.max(0, u1 - s1a);
+      if (s1b > s1bMax) s1b = s1bMax;
+      game.subUpgrades[0] = s1a;
+      game.subUpgrades[7] = s1b;
+      return { u1, s1a, s1b };
+    }
+
+
     // S1a: +3% to U1 BASE VALUE per perk
     const sub1U1BaseBonus = () => 1 + getS1aPerks() * 0.03;
     const sub1CoreMultiplier = () => coreSubBoostMultiplier(5);
@@ -2298,9 +2303,7 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
     const sub1bStardustMultiplier = () => 1 + getS1bPerks() * 0.03;
 
     function allocateS1a(change) {
-      const u1 = getU1Level();
-      const s1a = getS1aPerks();
-      const s1b = getS1bPerks();
+      const { u1, s1a, s1b } = normalizeS1Perks();
       const newS1a = s1a + change;
       if (newS1a < 0 || s1b + newS1a > u1) return false;
       game.subUpgrades[0] = newS1a;
@@ -2311,9 +2314,7 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
 
     function allocateS1b(change) {
       if (!sub1bUnlocked()) return false;
-      const u1 = getU1Level();
-      const s1a = getS1aPerks();
-      const s1b = getS1bPerks();
+      const { u1, s1a, s1b } = normalizeS1Perks();
       const newS1b = s1b + change;
       if (newS1b < 0 || s1a + newS1b > u1) return false;
       game.subUpgrades[7] = newS1b;
@@ -3756,9 +3757,7 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
       });
 
       if (sub1Unlocked()) {
-        const u1 = getU1Level();
-        const s1a = getS1aPerks();
-        const s1b = getS1bPerks();
+        const { u1, s1a, s1b } = normalizeS1Perks();
         const s1TotalMax = u1;
         const s1aMax = s1TotalMax - s1b;
         document.getElementById('sub1').textContent = `Perks: ${s1a}/${s1aMax} · x${sub1U1BaseBonus().toFixed(2)}`;
