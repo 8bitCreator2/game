@@ -1,0 +1,4061 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stardust Incremental</title>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --panel: #141414;
+      --line: #2a2a2a;
+      --text: #e8e8e8;
+      --muted: #888888;
+      --accent: #ffffff;
+      --card-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      --card-hover-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(ellipse at center, #1a1a1a 0%, #0a0a0a 70%, var(--bg) 100%);
+      color: var(--text);
+      font-family: "Press Start 2P", "VT323", "IBM Plex Mono", monospace;
+      padding: 1rem;
+    }
+
+    .app {
+      width: min(960px, 98vw);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 1rem;
+      border-radius: 4px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .app::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #ffd700, transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .app.highlight::before {
+      opacity: 1;
+      animation: shimmer 2s linear infinite;
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        width: 95vw;
+        padding: 0.75rem;
+      }
+      
+      h1 {
+        font-size: 0.85rem;
+        text-align: center;
+      }
+      
+      .tab-nav {
+        gap: 3px;
+      }
+      
+      .tab-btn {
+        padding: 0.4rem 0.3rem;
+        font-size: 0.6rem;
+        min-width: 60px;
+      }
+      
+      .persistent-stats {
+        flex-direction: column;
+        gap: 8px;
+      }
+      
+      .persistent-stats .card {
+        flex: none;
+      }
+      
+      .grid, .upgrades {
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.5rem;
+      }
+      
+      .card {
+        padding: 0.4rem;
+      }
+      
+      .card .label {
+        font-size: 0.6rem;
+      }
+      
+      .card .value {
+        font-size: 0.9rem;
+      }
+      
+      .card p, .card .muted {
+        font-size: 0.55rem;
+      }
+      
+      .card button {
+        padding: 0.3rem 0.4rem;
+        font-size: 0.6rem;
+      }
+      
+      .upgrade-title {
+        font-size: 0.55rem;
+      }
+      
+      .bonus-tag {
+        font-size: 0.5rem;
+      }
+      
+      .tooltip {
+        max-width: 220px;
+        font-size: 0.6rem;
+        padding: 8px 10px;
+      }
+      
+      .tooltip-title {
+        font-size: 0.65rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 0.5rem;
+      }
+      
+      .app {
+        width: 98vw;
+        padding: 0.5rem;
+        border-radius: 3px;
+      }
+      
+      h1 {
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .tab-nav {
+        flex-wrap: wrap;
+        gap: 2px;
+        margin-bottom: 0.5rem;
+      }
+      
+      .tab-btn {
+        flex: 1 1 calc(33.33% - 2px);
+        min-width: unset;
+        padding: 0.35rem 0.2rem;
+        font-size: 0.55rem;
+      }
+      
+      .persistent-stats {
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      
+      .grid, .upgrades {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.4rem;
+      }
+      
+      .card {
+        padding: 0.35rem;
+      }
+      
+      .card .label {
+        font-size: 0.55rem;
+      }
+      
+      .card .value {
+        font-size: 0.8rem;
+      }
+      
+      .card p, .card .muted, .card-tooltip {
+        font-size: 0.5rem;
+        line-height: 1.2;
+      }
+      
+      .card button {
+        padding: 0.25rem 0.3rem;
+        font-size: 0.55rem;
+        margin-top: 0.2rem;
+      }
+      
+      .upgrade-title {
+        font-size: 0.5rem;
+      }
+      
+      .bonus-tag {
+        font-size: 0.45rem;
+        padding: 0 2px;
+      }
+      
+      .section-title {
+        font-size: 0.6rem;
+      }
+      
+      .subtab {
+        padding-top: 0.15rem;
+        margin-top: 0.15rem;
+      }
+      
+      .progress-bar {
+        height: 6px;
+      }
+      
+      #toast {
+        padding: 8px 16px;
+        font-size: 0.65rem;
+        max-width: 90vw;
+      }
+      
+      .tooltip {
+        max-width: 180px;
+        font-size: 0.55rem;
+        padding: 6px 8px;
+      }
+      
+      .tooltip-title {
+        font-size: 0.6rem;
+        margin-bottom: 4px;
+      }
+      
+      .tooltip-cost, .tooltip-effect {
+        font-size: 0.5rem;
+      }
+    }
+
+    @media (max-width: 400px) {
+      .grid, .upgrades {
+        grid-template-columns: 1fr;
+      }
+      
+      .tab-btn {
+        flex: 1 1 calc(50% - 2px);
+        font-size: 0.5rem;
+      }
+      
+      .card .value {
+        font-size: 0.75rem;
+      }
+    }
+
+    h1 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #fff;
+    }
+
+    .grid, .upgrades {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: #181818;
+      padding: 0.5rem;
+      box-shadow: var(--card-shadow);
+      font-size: 0.75rem;
+      border-radius: 3px;
+      transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.15s ease, background 0.2s ease;
+    }
+
+    .card:hover {
+      box-shadow: var(--card-hover-shadow);
+      transform: translateY(-2px);
+      border-color: #444;
+    }
+
+    .card.hover-glow:hover {
+      box-shadow: 0 4px 20px rgba(77, 166, 255, 0.3), 0 2px 8px rgba(0,0,0,0.4);
+      border-color: #4da6ff;
+    }
+
+    .card.gold-glow:hover {
+      box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3), 0 2px 8px rgba(0,0,0,0.4);
+      border-color: #ffd700;
+    }
+
+    .card.green-glow:hover {
+      box-shadow: 0 4px 20px rgba(74, 222, 128, 0.3), 0 2px 8px rgba(0,0,0,0.4);
+      border-color: #4ade80;
+    }
+
+    .card .label {
+      font-size: 0.7rem;
+      margin-bottom: 0.2rem;
+    }
+
+    .card .value {
+      font-size: 1.05rem;
+    }
+
+    .card p, .card .muted {
+      font-size: 0.65rem;
+      line-height: 1.3;
+      margin: 0.15rem 0;
+    }
+
+    .card button {
+      padding: 0.4rem 0.5rem;
+      font-size: 0.65rem;
+      margin: 0.2rem 0;
+      border-radius: 2px;
+    }
+
+    #rankCard,
+    #u5Card,
+    #u6Card,
+    #sub1Card,
+    #sub2Card,
+    #sub3Card,
+    #sub4Card,
+    #sub5aCard,
+    #sub6Card {
+      border-color: #a08d2e;
+    }
+
+    #tierCard {
+      border-color: #3c6cff;
+    }
+
+    #coreEnhanceCard {
+      border-color: #4da6ff;
+      background: #0a1520;
+    }
+
+    #coreEnhance1Card,
+    #coreEnhance2Card {
+      border-color: #4da6ff;
+      background: #0a1520;
+    }
+
+    #coreEnhance1Card .value,
+    #coreEnhance2Card .value {
+      color: #4da6ff;
+    }
+
+    #challengeCard {
+      border-color: #ff6b6b;
+    }
+
+    #starsCoreCard {
+      border-color: #ffd700;
+    }
+
+    #starsCoreCard .value {
+      color: #ffd700;
+      font-size: 1.5rem;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    #coreCard {
+      border-color: #4da6ff;
+    }
+
+    #coreCard .value {
+      color: #4da6ff;
+    }
+
+    #starCard {
+      border-color: #ff8c00;
+      background: #1a1408;
+    }
+
+    #u5Card,
+    #u6Card,
+    #sub1Card,
+    #sub2Card,
+    #sub3Card,
+    #sub4Card,
+    #sub5aCard {
+      background: #1a1608;
+    }
+
+    #u7Card,
+    #u8Card,
+    #u9Card {
+      border-color: #ff8c00;
+      background: #1a1408;
+    }
+
+    #u10Card {
+      border-color: #39ff14;
+      background: rgba(57, 255, 20, 0.16);
+      box-shadow: 0 0 14px rgba(57, 255, 20, 0.28);
+    }
+
+    #u7Card .value,
+    #u8Card .value,
+    #u9Card .value {
+      color: #ffaa00;
+    }
+
+    #u10Card .value {
+      color: #39ff14;
+    }
+
+    #starCard .value {
+      color: #ffaa00;
+    }
+
+    #starCard .value {
+      text-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+    }
+
+    .label, .upgrade-title {
+      color: var(--muted);
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.1rem;
+    }
+
+    .value {
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 0.6rem;
+      line-height: 1.15;
+      word-break: break-word;
+      margin: 0.08rem 0;
+    }
+
+    .subtab {
+      margin-top: 0.2rem;
+      padding-top: 0.2rem;
+      border-top: 1px dashed #4a4a4a;
+    }
+
+    button {
+      margin-top: 0.35rem;
+      width: 100%;
+      border: 1px solid #4a4a4a;
+      background: #121212;
+      color: var(--accent);
+      padding: 0.38rem;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.68rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    button::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: width 0.3s, height 0.3s;
+    }
+
+    button:hover:not(:disabled)::before {
+      width: 200px;
+      height: 200px;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: #fff9b0;
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      color: #8a8358;
+      border-color: #303030;
+    }
+
+    button:focus-visible {
+      outline: 2px solid #ffffff;
+      outline-offset: 2px;
+    }
+
+    .challenge-active {
+      border-color: #ff6b6b !important;
+      background: #1a0a0a !important;
+    }
+
+    .challenge-completed {
+      border-color: #4ade80 !important;
+      background: #0a1a0a !important;
+    }
+
+
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .persistent-stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .persistent-stats .card {
+      flex: 1;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    .persistent-stats .card:hover {
+      transform: translateY(-3px);
+    }
+
+    .persistent-stats .card#stardustCard:hover {
+      border-color: #ffd700;
+      box-shadow: 0 6px 20px rgba(255, 215, 0, 0.2);
+    }
+
+    .persistent-stats .card#gpsCard:hover {
+      border-color: #4ade80;
+      box-shadow: 0 6px 20px rgba(74, 222, 128, 0.2);
+    }
+
+    .persistent-stats .card#starEnergyCard:hover {
+      border-color: #ff8c00;
+      box-shadow: 0 6px 20px rgba(255, 140, 0, 0.2);
+    }
+
+    .challenge-locked {
+      opacity: 0.5;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 0.3rem 0;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .progress-gold { 
+      background: linear-gradient(90deg, #ffd700, #ffaa00); 
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+    .progress-orange { 
+      background: linear-gradient(90deg, #ff8c00, #ff5500);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+    .progress-green { 
+      background: linear-gradient(90deg, #4ade80, #22c55e);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+    .progress-blue { 
+      background: linear-gradient(90deg, #4da6ff, #228be6);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+
+    .card-tooltip {
+      font-size: 0.65rem;
+      color: #9ca3af;
+      margin-top: 0.25rem;
+    }
+
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 0.5rem;
+      border: 1px solid #333;
+      background: #1a1a1a;
+      color: #888;
+      cursor: pointer;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      background: #252525;
+      color: #aaa;
+      border-color: #555;
+    }
+    .tab-btn.active {
+      border-color: #ffd700;
+      color: #ffd700;
+      background: #25200a;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+    }
+
+    .unlock-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .unlock-ready { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .unlock-locked { background: #444; }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-header .value {
+      font-size: 1.1rem;
+    }
+
+    .bonus-list {
+      font-size: 0.6rem;
+      color: #6b7280;
+      margin-top: 0.2rem;
+    }
+
+    .bonus-tag {
+      font-size: 0.6rem;
+      background: #1a1a1a;
+      padding: 1px 4px;
+      border-radius: 3px;
+      margin-left: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.5rem;
+      font-weight: 700;
+      background: #1a2a3a;
+      color: #4da6ff;
+      padding: 2px 5px;
+      border-radius: 3px;
+      margin-right: 6px;
+      font-family: inherit;
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .section-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: #666;
+      margin: 0.5rem 0 0.25rem;
+      border-bottom: 1px solid #333;
+      padding-bottom: 0.25rem;
+    }
+
+    @keyframes starPop {
+      0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+      50% { transform: translate(-50%, -50%) scale(2); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(3) translateY(-100px); opacity: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body::before {
+        display: none;
+      }
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0.11) 0, rgba(0, 0, 0, 0.11) 2px, transparent 2px, transparent 4px);
+      opacity: 0.33;
+    }
+
+    @keyframes flash {
+      0%, 100% { box-shadow: inset 0 0 10px rgba(255, 241, 118, 0.06); }
+      50% { box-shadow: inset 0 0 20px rgba(77, 166, 255, 0.5); border-color: #4da6ff; }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    @keyframes toastIn {
+      0% { transform: translate(-50%, 0); opacity: 0; }
+      20% { transform: translate(-50%, -20px); opacity: 1; }
+      80% { transform: translate(-50%, -20px); opacity: 1; }
+      100% { transform: translate(-50%, -30px); opacity: 0; }
+    }
+
+    .card.pulse { animation: pulse 0.3s ease; }
+    .card.flash { animation: flash 0.5s ease; }
+    button.flash { animation: flash 0.5s ease; border-color: #4da6ff !important; }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 5px rgba(255, 215, 0, 0.3); }
+      50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.6), 0 0 25px rgba(255, 215, 0, 0.3); }
+    }
+
+    @keyframes glowBlue {
+      0%, 100% { box-shadow: 0 0 5px rgba(77, 166, 255, 0.3); }
+      50% { box-shadow: 0 0 15px rgba(77, 166, 255, 0.6), 0 0 25px rgba(77, 166, 255, 0.3); }
+    }
+
+    @keyframes glowGreen {
+      0%, 100% { box-shadow: 0 0 5px rgba(74, 222, 128, 0.3); }
+      50% { box-shadow: 0 0 15px rgba(74, 222, 128, 0.6), 0 0 25px rgba(74, 222, 128, 0.3); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-4px) rotate(-1deg); }
+      40% { transform: translateX(4px) rotate(1deg); }
+      60% { transform: translateX(-4px) rotate(-1deg); }
+      80% { transform: translateX(4px) rotate(1deg); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    @keyframes borderGlow {
+      0%, 100% { border-color: var(--line); }
+      50% { border-color: #4da6ff; }
+    }
+
+    @keyframes countUp {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes ripple {
+      0% { transform: scale(0); opacity: 0.8; }
+      100% { transform: scale(4); opacity: 0; }
+    }
+
+    .shimmer {
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+    }
+
+    .glow-gold { animation: glow 2s ease-in-out infinite; }
+    .glow-blue { animation: glowBlue 2s ease-in-out infinite; }
+    .glow-green { animation: glowGreen 2s ease-in-out infinite; }
+    .shake { animation: shake 0.4s ease; }
+    .float { animation: float 3s ease-in-out infinite; }
+    .countUp { animation: countUp 0.3s ease; }
+    .border-glow { animation: borderGlow 1.5s ease-in-out infinite; }
+
+    .card.milestone-complete {
+      border-color: #ffd700 !important;
+      animation: glow 1.5s ease-in-out infinite;
+    }
+
+    .card.important {
+      border-color: #ff6b6b !important;
+    }
+
+    button:active:not(:disabled) {
+      transform: scale(0.97);
+    }
+
+    button.important:not(:disabled) {
+      background: linear-gradient(135deg, #1a0a0a, #2a1515);
+      border-color: #ff6b6b;
+    }
+
+    button.important:not(:disabled):hover {
+      background: linear-gradient(135deg, #2a1515, #3a2020);
+      box-shadow: 0 0 10px rgba(255, 107, 107, 0.4);
+    }
+
+    .value.animate {
+      animation: countUp 0.2s ease;
+    }
+
+
+    @keyframes radiationOutlineGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(57, 255, 20, 0.25), inset 0 0 10px rgba(57, 255, 20, 0.08); border-color: rgba(57,255,20,0.45); }
+      50% { box-shadow: 0 0 22px rgba(57, 255, 20, 0.65), inset 0 0 18px rgba(57, 255, 20, 0.2); border-color: rgba(57,255,20,0.9); }
+    }
+
+    @keyframes starOutlineGlow {
+      0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.25), inset 0 0 10px rgba(255, 215, 0, 0.08); border-color: rgba(255,215,0,0.45); }
+      50% { box-shadow: 0 0 22px rgba(255, 215, 0, 0.7), inset 0 0 18px rgba(255, 215, 0, 0.2); border-color: rgba(255,215,0,0.95); }
+    }
+
+    @keyframes radiationInnerParticles {
+      0% { background-position: 0 0, 0 0; opacity: 0.45; }
+      50% { background-position: 14px -12px, -10px 10px; opacity: 0.8; }
+      100% { background-position: 28px -24px, -20px 20px; opacity: 0.45; }
+    }
+
+    @keyframes starInnerParticles {
+      0% { background-position: 0 0, 0 0; opacity: 0.4; }
+      50% { background-position: -12px 10px, 12px -12px; opacity: 0.85; }
+      100% { background-position: -24px 20px, 24px -24px; opacity: 0.4; }
+    }
+
+
+    #tetrCard {
+      border-color: #22c55e;
+      box-shadow: 0 0 16px rgba(34, 197, 94, 0.25);
+      background: linear-gradient(180deg, rgba(24, 42, 30, 0.92), rgba(17, 28, 20, 0.92));
+    }
+    #radiationCard.radiation-aura,
+    #starCard.star-aura {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    #radiationCard.radiation-aura {
+      animation: radiationOutlineGlow 0.7s ease;
+    }
+
+    #starCard.star-aura {
+      animation: starOutlineGlow 0.7s ease;
+    }
+
+    #radiationCard.radiation-aura::after,
+    #starCard.star-aura::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      pointer-events: none;
+      border-radius: 6px;
+      z-index: 0;
+      mix-blend-mode: screen;
+    }
+
+    #radiationCard.radiation-aura::after {
+      background-image:
+        radial-gradient(circle, rgba(57,255,20,0.55) 1px, transparent 2px),
+        radial-gradient(circle, rgba(120,255,120,0.35) 1px, transparent 2px);
+      background-size: 18px 18px, 24px 24px;
+      animation: radiationInnerParticles 0.9s linear;
+    }
+
+    #radiationCard.radiation-live {
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      animation: radiationOutlineGlow 2.6s ease-in-out infinite;
+    }
+
+    #radiationCard.radiation-live::after {
+      content: '';
+      position: absolute;
+      inset: 4px;
+      pointer-events: none;
+      border-radius: 6px;
+      z-index: 0;
+      mix-blend-mode: screen;
+      background-image:
+        radial-gradient(circle, rgba(57,255,20,0.45) 1px, transparent 2px),
+        radial-gradient(circle, rgba(120,255,120,0.28) 1px, transparent 2px);
+      background-size: 18px 18px, 26px 26px;
+      animation: radiationInnerParticles 2.4s linear infinite;
+    }
+
+    #starCard.star-aura::after {
+      background-image:
+        radial-gradient(circle, rgba(255,215,0,0.7) 1px, transparent 2px),
+        radial-gradient(circle, rgba(255,244,170,0.45) 1px, transparent 2px);
+      background-size: 16px 16px, 26px 26px;
+      animation: starInnerParticles 0.9s linear;
+    }
+
+    #radiationCard > *,
+    #starCard > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    #starsCoreProgressFill { transition: width 0.3s ease; }
+
+    #toast {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: linear-gradient(135deg, #252525, #1a1a1a); border: 1px solid #4ade80; color: #4ade80;
+      padding: 12px 24px; border-radius: 4px; font-size: 0.75rem;
+      z-index: 9999; animation: toastIn 3s forwards; pointer-events: none;
+      box-shadow: 0 4px 20px rgba(74, 222, 128, 0.3);
+    }
+
+    #toast.gold {
+      border-color: #ffd700;
+      color: #ffd700;
+      box-shadow: 0 4px 20px rgba(255, 215, 0, 0.3);
+    }
+
+    #toast.blue {
+      border-color: #4da6ff;
+      color: #4da6ff;
+      box-shadow: 0 4px 20px rgba(77, 166, 255, 0.3);
+    }
+
+    #toast.orange {
+      border-color: #ff8c00;
+      color: #ff8c00;
+      box-shadow: 0 4px 20px rgba(255, 140, 0, 0.3);
+    }
+
+    .card-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 0.5rem;
+      padding-top: 0.4rem;
+      border-top: 1px dashed #333;
+    }
+    .card-nav-btn {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      color: #888;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.6rem;
+      cursor: pointer;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+    .card-nav-btn:hover {
+      border-color: #4da6ff;
+      color: #4da6ff;
+    }
+    .card-nav-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    .card-page {
+      font-size: 0.55rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Stardust Incremental</h1>
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="main" onclick="switchTab('main')">Main</button>
+      <button class="tab-btn" data-tab="upgrades" onclick="switchTab('upgrades')">Upgrades</button>
+      <button class="tab-btn" data-tab="milestones" onclick="switchTab('milestones')">Milestones</button>
+      <button class="tab-btn" data-tab="cores" onclick="switchTab('cores')" style="">Cores</button>
+      <button class="tab-btn" data-tab="starsCores" onclick="switchTab('starsCores')" style="display: none;">Stars Cores</button>
+      <button class="tab-btn" data-tab="stars" onclick="switchTab('stars')" style="display: none;">Stars</button>
+      <button class="tab-btn" data-tab="radiation" onclick="switchTab('radiation')" id="radiationTabBtn" style="display: none;">☢ Radiation</button>
+      <button class="tab-btn" data-tab="challenges" onclick="switchTab('challenges')" style="display: none;">Challenges</button>
+      
+    </div>
+    <div class="persistent-stats">
+      <article class="card" id="stardustCard">
+        <div class="label">Stardust</div>
+        <div class="value" id="stardust" aria-live="polite">3.10e39</div>
+      </article>
+      <article class="card" id="gpsCard">
+        <div class="label">Per Second</div>
+        <div class="value" id="gps" aria-live="polite">3.15e37</div>
+      </article>
+      <article class="card" id="starEnergyCard" style="display: none;">
+        <div class="label">Star Energy</div>
+        <div class="value" id="starEnergy" aria-live="polite" style="color:#ffaa00">0</div>
+      </article>
+      <article class="card" id="tickspeedStatCard" style="display: block; border-color: rgb(255, 107, 107); cursor: pointer;">
+        <div class="label" style="color:#ff6b6b;">⚡ Tickspeed</div>
+        <div class="value" id="tickspeedDisplay" aria-live="polite" style="color:#ff6b6b;font-size:1rem;">x3.24B</div>
+        <p class="muted" style="font-size:0.55rem; color:#4ade80;">lvl <span id="tickspeedLvl">83</span> · <span style="color:#ffaa00;font-weight:bold;">Cost: <span id="tickspeedCost">1.58e39</span> ✦</span></p>
+      </article>
+    </div>
+    <div id="tab-main" class="tab-content active">
+    <section class="grid">
+      <article class="card" id="tickspeedQuickInfo" style="display: block; border-color: rgb(255, 107, 107); grid-column: 1 / -1;">
+        <div class="label" style="color:#ff6b6b;">⚡ Tickspeed Guide</div>
+        <div class="muted" style="font-size:0.6rem; line-height:1.4;">
+          <b>Click top bar Tickspeed card to buy!</b> Cost: <span id="tickspeedQuickCost" style="color:#ffaa00;font-weight:bold;">1.58e39</span> ✦ · Each level: ×1.12 to ALL production · Cost increases 3×/level
+        </div>
+      </article>
+      
+      <article class="card" id="rankCard">
+        <div class="label">Stardust Rank</div>
+        <div class="value" id="rank" aria-live="polite">9</div>
+        <p class="muted" id="rankReq">Requirement: U4 level 160.</p>
+        <button id="rankUp">Rank up</button>
+      </article>
+
+      <article class="card" id="tierCard">
+        <div class="label">Stardust Tier</div>
+        <div class="value" id="tier" aria-live="polite">2</div>
+        <p class="muted" id="tierReq">Requirement: Rank 13 (+4 each tier). Tier resets rank, stardust, and upgrades.</p>
+        <button id="tierUp" disabled="">Tier up</button>
+      </article>
+
+      <article class="card" style="border-color:#f44;">
+        <div class="label" style="color:#f44;">Danger Zone</div>
+        <button id="hardReset" style="background:#400; color:#f66; border:1px solid #622; cursor:pointer; padding:0.3rem;">Hard Reset Game</button>
+      </article>
+
+      <article class="card" style="border-color:#4da6ff; grid-column: span 2;">
+        <div class="label">Priority Guide</div>
+        <div class="muted" id="gameplayTips" aria-live="polite" style="line-height:1.5; font-size: 0.55rem;"><b>Stage 3: Tier</b> Unlock and progress Tier<br><b>Goal</b>: Reach Tier 10 for Radiation<br><b>Current</b>: Tier 2<br><b>New</b>: Core system at Rank 8, Subupgrades at Tier 1<br><b>Stars Core</b>: 100 levels to next star<br><b>Cores</b>: 1 owned · Stardust boost: x38,92<br><b>Softcap</b>: U2 power at 0%</div>
+      </article>
+
+      <article class="card" style="grid-column: 1 / -1; border-color:#4ade80;">
+        <div class="label" style="color:#4ade80;">Quick Stats</div>
+        <div class="muted" id="quickStatsDisplay" aria-live="polite" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; font-size: 0.55rem; line-height: 1.3;">
+          <span><b>GPS</b>: <span id="quickGPS">3.15e37</span>/s</span>
+          <span><b>Raw GPS</b>: <span id="quickRawGPS">3.15e37</span>/s</span>
+          <span><b>Stardust</b>: <span id="quickStardust">3.10e39</span></span>
+          <span><b>Tickspeed</b>: <span id="quickTickspeed">x3.24B</span></span>
+          <span><b>Rank</b>: <span id="quickRank">9</span></span>
+          <span><b>Tier</b>: <span id="quickTier">2</span></span>
+          <span><b>Pacing</b>: <span id="quickPacing">x10.0K</span></span>
+          <span><b>U2 Power</b>: <span id="quickU2Power">28,64</span></span>
+          <span><b>Cost Reduc.</b>: <span id="quickCostReduc">40,08</span>%</span>
+          <span><b>Cores</b>: <span id="quickCores">1</span></span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="label">How to Play</div>
+        <div class="muted" id="quickGuide" aria-live="polite" style="line-height:1.35;">
+          <b>1.</b> Buy U1-U4 to build GPS<br>
+          <b>2.</b> Reach U4 level <span id="u4GoalText">160</span> to rank up<br>
+          <b>3.</b> Each rank: +20% gen, better pacing<br>
+          <b>4.</b> Rank 5 unlocks Tier system<br>
+          <b>5.</b> U5 reduces all upgrade costs
+        </div>
+        <button onclick="switchTab('milestones')">Milestones</button>
+      </article>
+
+      <article class="card" id="tetrCard" style="grid-column: span 2;" hidden="">
+        <div class="label" style="color:#ff00ff;">Tetr</div>
+        <div class="value" id="tetr" aria-live="polite">2</div>
+        <p class="muted" id="tetrReq">Requirement: Tier 16 (+4 each Tetr). Tetr resets tier, rank, stardust, and upgrades.</p>
+        <button id="tetrUp" disabled="">Tetr up</button>
+      </article>
+
+      <article class="card">
+        <div class="label">Save</div>
+        <div class="muted" id="saveStatus" aria-live="polite">Last save: 16:19:34 · Game saved.</div>
+        <div class="muted" id="playTime" style="margin:0.3rem 0;">1h 37m</div>
+        <button id="saveNow">Save Now</button>
+        <button id="exportSave">Export Save</button>
+        <button id="importSave">Import</button>
+        <button id="downloadGame">Download Game</button>
+        <input id="importSaveFile" type="file" accept="application/json" hidden="">
+      </article>
+
+      <article class="card" style="grid-column:1/-1;">
+        <div class="label" style="color:#ffd700;">🏆 Achievements <span id="achievementsCount" style="font-size:0.7em;">(3/29)</span></div>
+        <div class="muted" id="achievementsList" style="font-size:0.55rem; line-height:1.6; max-height:120px; overflow-y:auto;"><div style="opacity:1;">✅ Rising Star: Reach Rank 5</div><div style="opacity:0.4;">🔒 Double Digits: Reach Rank 10</div><div style="opacity:0.4;">🔒 Quarter Century: Reach Rank 25</div><div style="opacity:0.4;">🔒 Halfway There: Reach Rank 50</div><div style="opacity:0.4;">🔒 Centurion: Reach Rank 100</div><div style="opacity:0.4;">🔒 Tier Explorer: Reach Tier 5</div><div style="opacity:0.4;">🔒 Double Tier: Reach Tier 10</div><div style="opacity:0.4;">🔒 Tier Master: Reach Tier 15</div><div style="opacity:0.4;">🔒 New Dimension: Reach Tetr 1</div><div style="opacity:0.4;">🔒 Tetr Master: Reach Tetr 3</div><div style="opacity:0.4;">🔒 Star Collector: Collect 1 Star</div><div style="opacity:0.4;">🔒 Star Hoarder: Collect 5 Stars</div><div style="opacity:0.4;">🔒 Star Lord: Collect 10 Stars</div><div style="opacity:0.4;">🔒 Galaxy Master: Collect 20 Stars</div><div style="opacity:0.4;">🔒 Core Diver: Earn 10 Cores</div><div style="opacity:0.4;">🔒 Core Collector: Earn 50 Cores</div><div style="opacity:0.4;">🔒 Core Expert: Earn 100 Cores</div><div style="opacity:0.4;">🔒 Thousand Levels: Upgrade 1 to 1K levels</div><div style="opacity:0.4;">🔒 Power User: Upgrade 2 to 1K levels</div><div style="opacity:0.4;">🔒 Radioactive: Unlock Radiation</div><div style="opacity:0.4;">🔒 Fusion Reactor: Unlock Nuclear Fusion</div><div style="opacity:0.4;">🔒 Challenger: Complete Challenge 1</div><div style="opacity:0.4;">🔒 Challenge Master: Max Challenge 2</div><div style="opacity:0.4;">🔒 Core Breaker: Reach Stars Core level 100</div><div style="opacity:0.4;">🔒 Enhancer: Buy 1 Core Enhancement</div><div style="opacity:0.4;">🔒 Enhancement Master: Max Core Enhancements</div><div style="opacity:1;">✅ Getting Started: Reach 1e10 stardust</div><div style="opacity:1;">✅ Dust Storm: Reach 1e25 stardust</div><div style="opacity:0.4;">🔒 Cosmic Dust: Reach 1e45 stardust</div></div>
+      </article>
+    </section>
+    </div>
+
+    <div id="tab-upgrades" class="tab-content">
+    <section class="upgrades">
+      <article class="card" id="u1CardWrap" style="display: none;">
+        <div class="upgrade-title"><span class="badge">U1</span> Dust Scoop <span class="bonus-tag" style="color:#4ade80">+1/s/lvl</span></div>
+        <p class="muted">+1 base generation per level. Foundation of your production.</p>
+        <p class="muted" id="u1">lvl 292 / 8000 · raw base 293/s · current 1.38K/s · Tier 1 autobuy active · next 4.07e39 stardust · post-25 scaling</p>
+        <button id="buy1" disabled="">Buy</button>
+
+        <div class="subtab" id="sub1Card" style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed #333;">
+          <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#4a3a1a;color:#ffd700;">S1a</span> Base <span class="bonus-tag" style="color:#4ade80">+3%/perk</span></div>
+          <p class="muted" style="font-size: 0.55rem;">U1 value: +3% per perk (each U1 level gives more).</p>
+          <p style="margin: 0.2rem 0;">
+            <span class="muted" id="sub1" style="font-size: 0.5rem; color:#888;">Perks: 124/177 · x4.72</span>
+            <button id="sub1aMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
+            <button id="sub1aPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+          </p>
+        </div>
+        <div class="subtab" id="sub1bCard" style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dotted #444;">
+          <div class="upgrade-title" style="font-size: 0.6rem;"><span class="badge" style="background:#2a4a3a;color:#7d6;">S1b</span> Dust <span class="bonus-tag" style="color:#7d6">+3%/perk</span></div>
+          <p class="muted" style="font-size: 0.55rem;">Stardust mult: +3% per perk.</p>
+          <p style="margin: 0.2rem 0;">
+            <span class="muted" id="sub1b" style="font-size: 0.5rem; color:#888;">Perks: 115/168 · x4.45</span>
+            <button id="sub1bMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
+            <button id="sub1bPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+          </p>
+        </div>
+      </article>
+
+      <article class="card" id="u2Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#4a3010;color:#ffaa00;">U2</span> Amplifier <span class="bonus-tag" style="color:#ff8c00">×levels^0.7</span></div>
+        <p class="muted" id="desc2">Upgrade 2 uses power formula (levels^0.7) with softcap after lvl 50. Current effective per-level: +131,78%. Softcap now: x1.</p>
+        <p class="muted" id="u2">lvl 77 · raw 90.4K% · current 131,78% · boost x137T · next 3.33e39 stardust · power softcap active</p>
+        <button id="buy2" disabled="">Buy</button>
+
+        <div class="subtab" id="sub2Card" style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed #333;">
+          <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#4a3010;color:#ffaa00;">S2a</span> Amplifier <span class="bonus-tag" style="color:#ff8c00">×1.125/perk</span> <span style="color:#666; font-size: 0.5rem;">(linked to U2)</span></div>
+          <p class="muted" style="font-size: 0.55rem;">U2 effect multiplied by 1.125 per perk. Unlocks at Tier 1.</p>
+          <p style="margin: 0.2rem 0;">
+            <span class="muted" id="sub2" style="font-size: 0.5rem; color:#888;">Perks: 72/77 · U2 x4.82K</span>
+            <button id="sub2Minus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
+            <button id="sub2Plus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+          </p>
+          <div class="subtab" id="sub2bCard" style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed rgb(51, 51, 51); display: block;">
+            <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#4a3010;color:#ffaa00;">S2b</span> Raw U2 <span class="bonus-tag" style="color:#ff8c00">+10%/perk</span></div>
+            <p class="muted" style="font-size: 0.55rem;">Adds raw U2 levels directly (+10% per perk). Unlocks at Tier 2.</p>
+            <p style="margin: 0.2rem 0;">
+              <span class="muted" id="sub2b" style="font-size: 0.5rem; color:#888;">Perks: 0/5 · U2 +0%</span>
+              <button id="sub2bMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;" disabled="">-</button>
+              <button id="sub2bPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+            </p>
+          </div>
+      </div></article>
+
+      <article class="card" id="u3Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#2a3a2a;color:#4ade80;">U3</span> Calibration <span class="bonus-tag" style="color:#4ade80">+12%/lvl</span></div>
+        <p class="muted" id="desc3">Upgrade 3 adds +12% to Upgrade 2 base per level (extra cost scaling starts at lvl 8).</p>
+        <p class="muted" id="u3">lvl 182 · raw +2.18K% to u2 · current x22,84 · next 3.43e39 stardust · post-8 scaling</p>
+        <button id="buy3" disabled="">Buy</button>
+
+        <div class="subtab" id="sub3Card" style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed #333;">
+          <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#2a3a2a;color:#4ade80;">S3a</span> Booster <span class="bonus-tag" style="color:#4ade80">×1.05/perk</span> <span style="color:#666; font-size: 0.5rem;">(boosts pacing)</span></div>
+          <p class="muted" style="font-size: 0.55rem;">Pacing boost multiplied by 1.05 per perk. Max = U3 level. Unlocks at Tier 1.</p>
+          <p style="margin: 0.2rem 0;">
+            <span class="muted" id="sub3" style="font-size: 0.5rem; color:#888;">Perks: 150/156 · Pacing x1.51K</span>
+            <button id="sub3Minus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
+            <button id="sub3Plus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+          </p>
+        </div>
+        <div class="subtab" id="sub3bCard" style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dotted #444;">
+          <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#2a3a5a;color:#6af;">S3b</span> Tickspeed <span class="bonus-tag" style="color:#6af">+0.5%/perk</span> <span style="color:#666; font-size: 0.5rem;">(boosts multiplier)</span></div>
+          <p class="muted" style="font-size: 0.55rem;">Tickspeed multiplier increased by +0.5% per perk. Max = U3 level. Unlocks at Tier 1.</p>
+          <p style="margin: 0.2rem 0;">
+            <span class="muted" id="sub3b" style="font-size: 0.5rem; color:#888;">Perks: 26/32 · Tickspeed +13%</span>
+            <button id="sub3bMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
+            <button id="sub3bPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+          </p>
+        </div>
+</article></section></div>
+      
+
+      <article class="card" id="u4Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#3a2a3a;color:#d08;">U4</span> Stabilizer <span class="bonus-tag" style="color:#4ade80">+35%/lvl</span></div>
+        <p class="muted" id="desc4">Upgrade 4 additive boost is dynamic: +35%/lvl until 9, then +5%/lvl after softcap.</p>
+        <p class="muted" id="u4">lvl 160 · current +1.10K% to u2 (softcap after 9: +5%/lvl) · current x13,44 · next 1.55e38 stardust · post-15 scaling</p>
+        <button id="buy4">Buy</button>
+
+        <div class="subtab" id="sub4Card" style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed #333;" hidden="">
+          <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#3a3a3a;color:#aaa;">S4</span> Resonance <span class="bonus-tag" style="color:#4ade80">+15%/10 lvl</span> <span style="color:#666; font-size: 0.5rem;">(linked to U4)</span></div>
+          <p class="muted" style="font-size: 0.55rem;">Based on U4 level: +15% per 10 levels. Unlocks at Tier 3.</p>
+          <p class="muted" id="sub4" style="font-size: 0.55rem;">U4 lvl ${game.upgrades[3]} → U3 boost +${Math.floor(game.upgrades[3] / 10) * 15}%</p>
+        </div>
+      </article>
+
+      <article class="card" id="u5Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#2a2a4a;color:#6af;">U5</span> Compression <span class="bonus-tag" style="color:#4da6ff">÷cost</span></div>
+        <p class="muted">Reduces upgrade costs (except itself). Effect caps at 99%.</p>
+        <p class="muted" id="u5">lvl 100 / 100 · current cost reduction 40,08% · Level MAXED · next 4.32e26 stardust · Effect caps at 99%</p>
+        <button id="buy5" disabled="">Buy</button>
+
+        <div class="subtab" id="sub5aCard" style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed #333;" hidden="">
+          <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#2a2a4a;color:#6af;">S5a</span> Compressor <span class="bonus-tag" style="color:#6af">÷1.125/perk</span> <span style="color:#666; font-size: 0.5rem;">(linked to U5)</span></div>
+          <p class="muted" style="font-size: 0.55rem;">Divides upgrade cost by 1.125 per perk. Max = U5 level. Unlocks at Rank 10.</p>
+          <p style="margin: 0.2rem 0;">
+            <span class="muted" id="sub5a" style="font-size: 0.5rem; color:#888;">Perks: 0/0 · Cost ÷1</span>
+            <button id="sub5aMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
+            <button id="sub5aPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+          </p>
+          <div class="subtab" id="sub5bCard" style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed #333; display:none;">
+            <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#2a2a4a;color:#6af;">S5b</span> Time Dilator <span class="bonus-tag" style="color:#6af">÷1.5/perk</span></div>
+            <p class="muted" style="font-size: 0.55rem;">Reduces tickspeed cost by 1.5x per perk. Max = U5 level. Unlocks at Rank 10.</p>
+            <p style="margin: 0.2rem 0;">
+              <span class="muted" id="sub5b" style="font-size: 0.5rem; color:#888;">Perks: 0/0 · Tickspeed cost ÷1</span>
+              <button id="sub5bMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
+              <button id="sub5bPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
+            </p>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" id="u6Card" data-tab-only="upgrades" style="display: none;" hidden="">
+        <div class="upgrade-title"><span class="badge" style="background:#3a2020;color:#f66;">U6</span> Tempo <span class="bonus-tag" style="color:#ff6b6b">x3/lvl</span></div>
+        <p class="muted">Boosts stardust by x3 per level. Cost scales 10x per level.</p>
+        <p class="muted" id="u6">lvl 7 · current x2.19K stardust · next 1.00e39 stardust</p>
+        <button id="buy6">Buy</button>
+
+        <div class="subtab" id="sub6Card" style="margin-top: 0.6rem; padding-top: 0.6rem; border-top: 1px dashed #333;" hidden="">
+          <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#3a3a20;color:#fd4;">S6</span> Boost <span class="bonus-tag" style="color:#ffd700">x2/5 lvl</span> <span style="color:#666; font-size: 0.5rem;">(linked to U6)</span></div>
+          <p class="muted" style="font-size: 0.55rem;">U6 auto-generates: ×2 stardust per 5 levels.</p>
+          <p class="muted" id="sub6" style="font-size: 0.55rem;">U6 lvl ${game.upgrades[5]} → x${Math.pow(2, Math.floor(game.upgrades[5] / 5))} stardust boost</p>
+        </div>
+      </article>
+
+      <article class="card" id="u7Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#3a2a10;color:#fa0;">U7</span> Star Energy <span class="bonus-tag" style="color:#ffaa00">+40%/lvl</span></div>
+        <p class="muted">Boosts stardust +40% and pacing +10% per level. Cost: Star Energy.</p>
+        <p class="muted" id="u7">lvl 128 · current x145,25 · boosts stardust +40%/lvl · next 34.6Sx SE · SE Upgrade 6: x1,25</p>
+        <button id="buy7">Buy</button>
+      </article>
+
+      <article class="card" id="u8Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#3a2a10;color:#fa0;">U8</span> Star Boost <span class="bonus-tag" style="color:#ffaa00">+20%/lvl</span></div>
+        <p class="muted">Boosts Upgrade 3 base effect by +20% per level. Cost: Star Energy.</p>
+        <p class="muted" id="u8">lvl 84 · current x26,2 · boosts U3 effect on U2 +20%/lvl · next 5.55Sx SE</p>
+        <button id="buy8">Buy</button>
+      </article>
+
+      <article class="card" id="u9Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#3a2a10;color:#fa0;">U9</span> Hyper Tempo <span class="bonus-tag" style="color:#ffaa00">x1.35/lvl</span></div>
+        <p class="muted">Boosts pacing multiplier. Cost: Star Energy.</p>
+        <p class="muted" id="u9">lvl 49 · current pacing x2.43M · next 4.27e24 SE</p>
+        <button id="buy9">Buy</button>
+      </article>
+
+      <article class="card" id="u10Card" style="display: none;">
+        <div class="upgrade-title"><span class="badge" style="background:#1a3a1a;color:#4f4;">U10</span> Irradiated Engines <span class="bonus-tag" style="color:#39ff14">Radiation-scaling</span></div>
+        <p class="muted">Unlocks at Tier 10. Each level multiplies stardust by a value based on current Radiation. Cost: Radiation.</p>
+        <p class="muted" id="u10">lvl 20 · current stardust x395,93 · rad factor x1,349/lvl · next 2.21K Radiation</p>
+        <button id="buy10">Buy</button>
+      </article>
+
+      <article class="card" id="u11Card" style="display: none; border-color: rgb(255, 215, 0); background: rgb(26, 20, 8);">
+        <div class="upgrade-title"><span class="badge" style="background:#3a3a10;color:#fd4;">U11</span> Stellar Converter <span class="bonus-tag" style="color:#ffd700">Radiation-scaling</span></div>
+        <p class="muted">Unlocks at Tier 14. Each level multiplies Star Energy by a value based on current Radiation. Cost: Radiation.</p>
+        <p class="muted" id="u11">lvl 9 · current SE x3.35K · rad factor x2,464/lvl · next 5.12K Radiation</p>
+        <button id="buy11" disabled="">Buy</button>
+      </article>
+
+      <article class="card" id="u2PowerCard" style="display: none;">
+        <div class="label">U2 Power Formula</div>
+        <div class="muted" id="weightedHelp" aria-live="polite" style="font-size:0.6rem;">Power Formula: levels^0.7 with softcap after level 50.<br>Current: <b>77 levels =&gt; 28,64 power</b><br>No-softcap power: <b>28,64</b><br>Softcap effect: <b>x1</b> (0% reduced)<br>Next level adds: <b>+0,282 power</b><br>Softcap starts at level <b>50</b> (4% per level over).</div>
+      </article>
+
+      <article class="card" id="pacingSystemCard" style="display: none;">
+        <div class="label">Pacing System</div>
+        <div class="muted" id="pacingHelp" aria-live="polite" style="font-size:0.6rem;">Current pacing boost: <b>x10.0K</b><br>From upgrades: <b>+1.67K%</b><br>From rank: <b>+190,59%</b><br>From tier: <b>+39,97%</b><br>From challenge: <b>x1</b><br>From Upgrade 6: <b>+35%</b><br>From Stars Core: <b>+0%</b> (locked)<br>From Tickspeed: <b>+1.25K%</b><br>From Rank 4: <b>+108%</b><br>Hard cap: <b>10.0K</b><br>Rank pacing mode: <b>multiplicative (Rank 6)</b><br>Tier pacing mode: <b>multiplicative (Tier 2)</b></div>
+      </article>
+
+    </div>
+
+    <div id="tab-milestones" class="tab-content">
+      <div style="display:flex;gap:0.5rem;margin-bottom:1rem;flex-wrap:wrap;">
+        <button id="milestoneTabRank" class="tab-btn" style="flex:1;padding:0.6rem;background:#2a3a2a;color:#4ade80;border:1px solid #3a4a3a;border-radius:4px;cursor:pointer;">📊 Rank</button>
+        <button id="milestoneTabTier" class="tab-btn" style="flex:1;padding:0.6rem;background:#1a1a2a;color:#6af;border:1px solid #2a2a4a;border-radius:4px;cursor:pointer;">🏆 Tier</button>
+        <button id="milestoneTabTetr" class="tab-btn" style="flex:1;padding:0.6rem;background:#2a2a3a;color:#d08;border:1px solid #3a3a4a;border-radius:4px;cursor:pointer;">💎 Tetr</button>
+        <button id="milestoneTabChallenge" class="tab-btn" style="flex:1;padding:0.6rem;background:#3a2a2a;color:#f66;border:1px solid #4a3a3a;border-radius:4px;cursor:pointer;">⚔️ Challenge</button>
+      </div>
+      
+      <div id="milestonesRankPanel">
+        <article class="card">
+          <div class="label" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>📊 Rank Progress</span>
+            <span class="value" id="rankProgressDisplay" style="color:#4ade80;font-size:1.2rem;">Rank 9</span>
+          </div>
+          <div style="margin: 0.8rem 0;">
+            <div style="background:#1a1a1a;border-radius:4px;height:12px;overflow:hidden;">
+              <div id="rankProgressBar" style="background: linear-gradient(90deg, rgb(42, 74, 58), rgb(74, 222, 128)); height: 100%; width: 30%; transition: width 0.3s;"></div>
+            </div>
+            <div class="muted" id="rankProgressText" style="margin-top:0.4rem;font-size:0.75rem;">Current: Rank 9</div>
+          </div>
+          <div class="muted" id="milestonesRank" aria-live="polite">✓ Rank 1: Unlock Upgrade 5 + generation x2<br>✓ Rank 2: U1-U4 cost 30% + Pacing cap x100<br>✓ Rank 3: 5% gen + Tickspeed ×1.12/lvl<br>✓ Rank 4: Tickspeed boosts pacing + Pacing +12%/rank + S1a unlocked<br>✓ Rank 5: Unlock Tier system<br>✓ Rank 6: Rank pacing becomes multiplicative<br>✓ Rank 7: Tickspeed 1.3x/lvl + Cost 2.6x + Rank scaling +6<br>✓ Rank 8: Pacing cap x10000 + unlock Cores<br>✓ Rank 9: U4 requirement 160<br>· Rank 10: Unlock S5a (÷1.125/perk) + S5b (÷1.5 tickspeed cost)<br>· Rank 11: Unlock Challenges<br>· Rank 14: Unlock Subupgrade 6 (Stardust x2/lvl)<br>· Rank 15: Stars Core boosts gen +10%/lvl<br>· Rank 16: Core Enhancements (Pacing + Stardust x10)<br>· Rank 26: Remove U5 level cap + Star Energy boosted by pacing</div>
+        </article>
+      </div>
+      
+      <div id="milestonesTierPanel" style="display:none;">
+        <article class="card">
+          <div class="label" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>🏆 Tier Progress</span>
+            <span class="value" id="tierProgressDisplay" style="color:#6af;font-size:1.2rem;">Tier 2</span>
+          </div>
+          <div style="margin: 0.8rem 0;">
+            <div style="background:#1a1a1a;border-radius:4px;height:12px;overflow:hidden;">
+              <div id="tierProgressBar" style="background: linear-gradient(90deg, rgb(42, 42, 74), rgb(102, 170, 255)); height: 100%; width: 13.3333%; transition: width 0.3s;"></div>
+            </div>
+            <div class="muted" id="tierProgressText" style="margin-top:0.4rem;font-size:0.75rem;">Current: Tier 2</div>
+          </div>
+          <div class="muted" id="milestonesTier" aria-live="polite">✓ Tier 1: Subupgrades 2 &amp; 3 unlocked<br>✓ Tier 2: Unlock U6 + S2b + U5 cap 100 + U3 autobuy<br>· Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer<br>· Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap<br>· Tier 5: U6 autobuy + U5 free<br>· Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8<br>· Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9<br>· Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling<br>· Tier 10: Remove U1 6000 cap + Unlock Upgrade 10 (Radiation)<br>· Tier 11: Radiation Infusion unlocks in Stars, Cores, and Stars Cores</div>
+        </article>
+      </div>
+      
+      <div id="milestonesTetrPanel" style="display:none;">
+        <article class="card">
+          <div class="label" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>💎 Tetr Progress</span>
+            <span class="value" id="tetrProgressDisplay" style="color:#d08;font-size:1.2rem;">Tetr 0</span>
+          </div>
+          <div style="margin: 0.8rem 0;">
+            <div style="background:#1a1a1a;border-radius:4px;height:12px;overflow:hidden;">
+              <div id="tetrProgressBar" style="background:linear-gradient(90deg,#3a2a3a,#d08);height:100%;width:0%;transition:width 0.3s;"></div>
+            </div>
+            <div class="muted" id="tetrProgressText" style="margin-top:0.4rem;font-size:0.75rem;">Current: Tetr 0</div>
+          </div>
+          <div class="muted" id="milestonesTetr" aria-live="polite">· Tetr 1: Stars Core Lab unlocked (4 new augments)<br>· Tetr 2: Pacing boosts Radiation + Star Energy Upgrades 4-6 unlocked</div>
+        </article>
+      </div>
+      
+      <div id="milestonesChallengePanel" style="display:none;">
+        <article class="card">
+          <div class="label" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>⚔️ Challenge Progress</span>
+            <span class="value" id="challengeProgressDisplay" style="color:#f66;font-size:1.2rem;">0 / 1</span>
+          </div>
+          <div style="margin: 0.8rem 0;">
+            <div style="background:#1a1a1a;border-radius:4px;height:12px;overflow:hidden;">
+              <div id="challengeProgressBar" style="background:linear-gradient(90deg,#4a2a2a,#f66);height:100%;width:0%;transition:width 0.3s;"></div>
+            </div>
+            <div class="muted" id="challengeProgressText" style="margin-top:0.4rem;font-size:0.75rem;">Challenge 1: 0 completion(s)</div>
+          </div>
+          <div class="muted" id="milestonesChallenge" aria-live="polite">· Challenge 1: Reach U4 lvl 30 (+1 Core)<br>· Challenge 2: Reach U4 lvl 25 (+U2 exponent +0.00,5)</div>
+        </article>
+      </div>
+    </div>
+
+    <div id="tab-cores" class="tab-content">
+    <section class="grid">
+      <article class="card" id="coreCard" style="border-color:#4da6ff;">
+        <div class="label">💎 Core</div>
+        <div class="value" id="cores" style="color:#4da6ff" aria-live="polite">1</div>
+        <div class="muted" id="coreInfo" aria-live="polite">Stardust boost: <b>x38,92</b> (1 + log11(stardust))</div>
+        <button id="buyCore" style="margin-top:8px;width:100%;">Buy Core (1.00e38 stardust)</button>
+      </article>
+    </section>
+  </div>
+
+    <div id="tab-starsCores" class="tab-content">
+      <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+        <article class="card" id="starsCoreCard" hidden="">
+          <div class="label">Stars Core Progress</div>
+          <div class="value" id="starsCoreLevel" style="color:#ffd700">202</div>
+          <div class="muted" id="starsCoreInfo" aria-live="polite">Progress: <b>4.06e45</b> / <b>1.56e96</b> XP<br>Formula: <b>3^x</b> · Next cost: <b>1.56e96</b> stardust</div>
+          <div class="progress-bar" id="starsCoreProgressBar" style="margin-top:8px;height:12px;background:#222;border:1px solid #444;position:relative;">
+            <div id="starsCoreProgressFill" style="height: 100%; background: linear-gradient(90deg, rgb(255, 215, 0), rgb(255, 170, 0)); width: 2.60709e-49%;"></div>
+          </div>
+          <p class="muted" id="starsCoreStarReq" style="margin-top:4px;"><span style="color:#4ade80">★ READY TO GENERATE STAR ★</span></p>
+        </article>
+        
+<article class="card" id="tickspeedCard" style="border-color: rgb(255, 107, 107); display: block;">
+        <div class="upgrade-title"><span class="badge" style="background:#3a1a1a;color:#f66;">TS</span> Tickspeed <span class="bonus-tag" style="color:#ff6b6b">×1.12/lvl</span></div>
+        <p class="muted" style="font-size:0.6rem;">Boosts ALL production by 1.12x per level. Unlocks at Rank 3.</p>
+        <p class="muted" id="tickspeedInfo">lvl 83 · current x3.24B (+13% from S3b) · next 1.58e39 stardust</p>
+        <button id="buyTickspeed">Buy</button>
+      </article>
+
+      <article class="card" id="tickspeedExplainCard" style="border-color: rgb(255, 107, 107); display: block;">
+        <div class="label" style="color:#ff6b6b;">⚡ How Tickspeed Works</div>
+        <div class="muted" style="font-size:0.55rem;line-height:1.5;">
+          <b>What it does:</b> Multiplies ALL stardust generation by 1.12x per level<br><br>
+          <b>Effect stacks multiplicatively:</b><br>
+          • Lvl 1: ×1.12<br>
+          • Lvl 10: ×2.7<br>
+          • Lvl 20: ×9.6<br><br>
+          <b>Cost:</b> Starts at 1,000 stardust, increases 3x per level<br><br>
+          <b>How to buy:</b> Click the "Buy" button on the Tickspeed card above, OR click the Tickspeed stat in the top bar<br><br>
+          <b>Tip:</b> Buy early! The multiplier compounds over time
+        </div>
+      </article>
+    </section>
+    </div>
+
+    <div id="tab-stars" class="tab-content">
+      <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <article class="card" id="starCard" hidden="">
+          <div class="label">Stars</div>
+          <div class="value" id="stars" style="color:#ff8c00" aria-live="polite">0</div>
+          <div class="muted" id="starInfo" aria-live="polite">Stars: <b>6</b>/20<br>Next star at SC level: <b>90</b><br><span style="color:#4ade80">★ No resets (just +1 star +1 SE)</span><br>☢ Radiation UNLOCKED<br>⚛ Nuclear Fusion at 8 stars</div>
+          <button id="gainStar" style="margin-top:8px;width:100%;">Generate Star</button>
+        </article>
+        
+        <article class="card" id="starUpgradesCard" style="grid-column: 1 / -1;">
+          <div class="label">Star Upgrades (Tier 8+)</div>
+          <div class="muted" id="starUpgradesInfo" aria-live="polite" style="margin-bottom:8px;">Star upgrades boost various aspects of your production. Costs 2x per level.<br>Tier 11 Radiation Infusion: <b>ACTIVE</b> · all Star upgrades multiplied by x1,349 from Radiation</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button id="buyStarUpgrade0" style="flex:1 1 30%;">Star Dust Boost Dust +50% (94) 1.98e40</button>
+            <button id="buyStarUpgrade1" style="flex:1 1 30%;">Star Rank Boost Rank +30% (92) 2.48e40</button>
+            <button id="buyStarUpgrade2" style="flex:1 1 30%;">Star Tier Boost Tier +25% (88) 3.09e40</button>
+            <button id="buyStarUpgrade3" style="flex:1 1 30%;">Star Pacing Boost Pacing +20% (86) 3.87e40</button>
+            <button id="buyStarUpgrade4" style="flex:1 1 30%;">Star Core Boost Core +15% (82) 4.84e40</button>
+            <button id="buyStarUpgrade5" style="flex:1 1 30%;">Star Energy Boost SE +15% (77) 7.56e39</button>
+            <button id="buyStarUpgrade6" style="flex:1 1 30%;">Star Generation Boost Gen +10% (75) 3.78e40</button>
+            <button id="buyStarUpgrade7" style="flex:1 1 30%;">Star Power Boost U2 +10% (72) 2.36e40</button>
+          </div>
+        </article>
+        
+        <article class="card" id="starEnergyUpgradesCard" style="grid-column: 1 / -1;">
+          <div class="label">Star Energy Upgrades</div>
+          <div class="muted" id="starEnergyUpgradesInfo" aria-live="polite" style="margin-bottom:8px;">SE1: ✓ 10x · SE2: ✓ +Rank · SE3: ✓ 3x<br>SE4: ✓ 100x · SE5: ✓ 2x Rad · SE6: ✓ +25%</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button id="buySEUpgrade0" style="flex:1 1 30%;" disabled="">SE1 Owned</button>
+            <button id="buySEUpgrade1" style="flex:1 1 30%;" disabled="">SE2 Owned</button>
+            <button id="buySEUpgrade2" style="flex:1 1 30%;" disabled="">SE3 Owned</button>
+            <button id="buySEUpgrade3" style="flex:1 1 30%;" disabled="">SE4 Owned</button>
+            <button id="buySEUpgrade4" style="flex:1 1 30%;" disabled="">SE5 Owned</button>
+            <button id="buySEUpgrade5" style="flex:1 1 30%;" disabled="">SE6 Owned</button>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <div id="tab-radiation" class="tab-content">
+      <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <article class="card" id="radiationCard" style="border-color:#39ff14;" hidden="">
+          <div class="label">Radiation ☢</div>
+          <div class="value" id="radiation" style="color:#39ff14" aria-live="polite">22.8K</div>
+          <div class="muted" id="radiationInfo" aria-live="polite">Unlock at <b>5 Stars</b> (5 more)</div>
+        </article>
+        
+        <article class="card" style="border-color:#66e3ff;">
+          <div class="label">Nuclear Fusion ⚛</div>
+          <div class="value" id="fusion" style="color:#66e3ff" aria-live="polite">LOCKED</div>
+          <div class="muted" id="fusionInfo" aria-live="polite">Unlock at <b>8 Stars</b> (2 more)</div>
+        </article>
+        
+        <article class="card" style="grid-column:1/-1; border-color:#39ff14;">
+          <div class="label">Radiation Upgrades</div>
+          <div class="muted" id="radiationUpgradesInfo" style="margin-bottom:8px;">Gamma: +25%/lvl · Neutrino: +15%/lvl · Chrono: +12%/lvl · Irradiated: +10%/lvl · Atomic: +8%/lvl<br>Costs 1.9x per level</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button id="buyRad0" style="flex:1 1 30%;">Gamma +25% Dust (7) - 893</button>
+            <button id="buyRad1" style="flex:1 1 30%;">Neutrino +15% SE (4) - 325</button>
+            <button id="buyRad2" style="flex:1 1 30%;">Chrono +12% Pace (3) - 411</button>
+            <button id="buyRad3" style="flex:1 1 30%;">Irradiated +10% Fusion (2) - 541</button>
+            <button id="buyRad4" style="flex:1 1 30%;">Atomic +8% Dust (2) - 1.44K</button>
+          </div>
+        </article>
+        
+        <article class="card" id="fusionUpgradesCard" style="grid-column:1/-1; border-color:#66e3ff;" hidden="">
+          <div class="label">Nuclear Fusion Upgrades</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <button id="buyFusion0" style="flex:1 1 30%;" disabled="">Fusion Matrix: +35% stardust gen/lvl (locked)</button>
+            <button id="buyFusion1" style="flex:1 1 30%;" disabled="">Synchrotron: +30% radiation gain/lvl (locked)</button>
+            <button id="buyFusion2" style="flex:1 1 30%;" disabled="">Plasma Rhythm: +20% pacing/lvl (locked)</button>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <div id="tab-challenges" class="tab-content">
+      <section class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+        <article class="card" id="challengeCard" style="border-color: rgb(74, 222, 128);" hidden="">
+          <div class="label">Challenge 1 ⚔️</div>
+          <div class="muted" id="challenge1Info" aria-live="polite">Status: <span style="color:#4ade80">✓ DONE</span><br>Goal: U4 level 30 · Current: 303<br>Reward: <b>Stars Cores unlock</b></div>
+          <button id="startChallenge1" style="margin-top:8px;width:100%;" disabled="">Completed</button>
+        </article>
+        
+        <article class="card" id="challenge2Card" style="border-color: rgb(74, 222, 128);" hidden="">
+          <div class="label">Challenge 2 ⚔️</div>
+          <div class="muted" id="challenge2Info" aria-live="polite">Status: <span style="color:#4ade80">✓ MAXED</span><br>Goal: U4 level 45 · Current: 303<br>Progress: 5/5 completions<br>Reward: <b>U2 exponent +0.05</b></div>
+          <button id="startChallenge2" style="margin-top:8px;width:100%;" disabled="">Maxed</button>
+        </article>
+        
+        <article class="card" style="grid-column:1/-1;">
+          <button id="exitChallenge" style="width:100%;background:#ff4444;color:white;" hidden="" disabled="">Exit Challenge</button>
+        </article>
+      </section>
+    </div>
+
+    
+
+  <script>
+    const SAVE_KEY = 'stardustIncremental';
+    let saveMessage = '';
+    let lastSavedAt = null;
+
+    function defaultState() {
+      return {
+        stardust: 0,
+        rank: 0,
+        tier: 0,
+        stars: 0,
+        starUpgrades: [0, 0, 0, 0, 0, 0, 0, 0],
+        starEnergyUpgrades: [0, 0, 0, 0, 0, 0],
+        upgrades: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        subUpgrades: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        baseCosts: [5, 10, 20, 40, 100, 1e17, 1, 1, 1000000, 0.01, 10],
+        starEnergy: 0,
+        tierUnlocked: false,
+        subUnlocked: [false, false, false, false, false, false, false, false, false],
+        cores: 0,
+        coreAllocations: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        coreInitGranted: false,
+        corePacingClaimedExp: 0,
+        coreEnhance1: 0,
+        coreEnhance2: 0,
+        challengesUnlocked: false,
+        challengeActive: false,
+        challenge2Active: false,
+        challenge1Completions: 0,
+        challenge2Completions: 0,
+        starsCoreUnlocked: false,
+        starsCoreLevel: 0,
+        radiation: 0,
+        radiationUpgrades: [0, 0, 0, 0, 0],
+        fusion: 0,
+        fusionUpgrades: [0, 0, 0],
+        tetr: 0,
+        starsCoreAugments: [0, 0, 0, 0],
+        achievements: [],
+        totalPlayTime: 0,
+        tickspeedLevel: 0,
+        tickspeedUnlocked: false,
+      };
+    }
+
+    const game = defaultState();
+
+    const ACHIEVEMENTS = [
+      { id: 'rank5', name: 'Rising Star', desc: 'Reach Rank 5', condition: () => game.rank >= 5 },
+      { id: 'rank10', name: 'Double Digits', desc: 'Reach Rank 10', condition: () => game.rank >= 10 },
+      { id: 'rank25', name: 'Quarter Century', desc: 'Reach Rank 25', condition: () => game.rank >= 25 },
+      { id: 'rank50', name: 'Halfway There', desc: 'Reach Rank 50', condition: () => game.rank >= 50 },
+      { id: 'rank100', name: 'Centurion', desc: 'Reach Rank 100', condition: () => game.rank >= 100 },
+      { id: 'tier5', name: 'Tier Explorer', desc: 'Reach Tier 5', condition: () => game.tier >= 5 },
+      { id: 'tier10', name: 'Double Tier', desc: 'Reach Tier 10', condition: () => game.tier >= 10 },
+      { id: 'tier15', name: 'Tier Master', desc: 'Reach Tier 15', condition: () => game.tier >= 15 },
+      { id: 'tetr1', name: 'New Dimension', desc: 'Reach Tetr 1', condition: () => game.tetr >= 1 },
+      { id: 'tetr3', name: 'Tetr Master', desc: 'Reach Tetr 3', condition: () => game.tetr >= 3 },
+      { id: 'star1', name: 'Star Collector', desc: 'Collect 1 Star', condition: () => game.stars >= 1 },
+      { id: 'star5', name: 'Star Hoarder', desc: 'Collect 5 Stars', condition: () => game.stars >= 5 },
+      { id: 'star10', name: 'Star Lord', desc: 'Collect 10 Stars', condition: () => game.stars >= 10 },
+      { id: 'star20', name: 'Galaxy Master', desc: 'Collect 20 Stars', condition: () => game.stars >= 20 },
+      { id: 'core10', name: 'Core Diver', desc: 'Earn 10 Cores', condition: () => game.cores >= 10 },
+      { id: 'core50', name: 'Core Collector', desc: 'Earn 50 Cores', condition: () => game.cores >= 50 },
+      { id: 'core100', name: 'Core Expert', desc: 'Earn 100 Cores', condition: () => game.cores >= 100 },
+      { id: 'u1k', name: 'Thousand Levels', desc: 'Upgrade 1 to 1K levels', condition: () => game.upgrades[0] >= 1000 },
+      { id: 'u2k', name: 'Power User', desc: 'Upgrade 2 to 1K levels', condition: () => game.upgrades[1] >= 1000 },
+      { id: 'radiation', name: 'Radioactive', desc: 'Unlock Radiation', condition: () => game.radiation > 0 || game.upgrades[9] > 0 },
+      { id: 'fusion', name: 'Fusion Reactor', desc: 'Unlock Nuclear Fusion', condition: () => game.stars >= 8 },
+      { id: 'challenge5', name: 'Challenger', desc: 'Complete Challenge 1', condition: () => game.challenge1Completions >= 1 },
+      { id: 'challenge10', name: 'Challenge Master', desc: 'Max Challenge 2', condition: () => game.challenge2Completions >= 5 },
+      { id: 'sc100', name: 'Core Breaker', desc: 'Reach Stars Core level 100', condition: () => game.starsCoreLevel >= 100 },
+      { id: 'ce1', name: 'Enhancer', desc: 'Buy 1 Core Enhancement', condition: () => game.coreEnhance1 >= 1 || game.coreEnhance2 >= 1 },
+      { id: 'ceMax', name: 'Enhancement Master', desc: 'Max Core Enhancements', condition: () => game.coreEnhance1 >= 10 && game.coreEnhance2 >= 5 },
+      { id: '1e10', name: 'Getting Started', desc: 'Reach 1e10 stardust', condition: () => game.stardust >= 1e10 },
+      { id: '1e25', name: 'Dust Storm', desc: 'Reach 1e25 stardust', condition: () => game.stardust >= 1e25 },
+      { id: '1e45', name: 'Cosmic Dust', desc: 'Reach 1e45 stardust', condition: () => game.stardust >= 1e45 },
+    ];
+
+    function checkAchievements() {
+      ACHIEVEMENTS.forEach(ach => {
+        if (!game.achievements.includes(ach.id) && ach.condition()) {
+          game.achievements.push(ach.id);
+          // Achievement toast removed - view in Achievements tab
+        }
+      });
+    }
+
+    function applyState(state) {
+      const safe = defaultState();
+      game.stardust = Number.isFinite(state.stardust) ? Math.max(0, state.stardust) : safe.stardust;
+      game.rank = Number.isFinite(state.rank) ? Math.max(0, Math.floor(state.rank)) : safe.rank;
+      game.tier = Number.isFinite(state.tier) ? Math.max(0, Math.floor(state.tier)) : safe.tier;
+      game.stars = Number.isFinite(state.stars) ? Math.max(0, Math.floor(state.stars)) : safe.stars;
+      game.starUpgrades = Array.isArray(state.starUpgrades) ? safe.starUpgrades.map((_, i) => {
+        const v = state.starUpgrades[i];
+        return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+      }) : safe.starUpgrades;
+      game.starEnergyUpgrades = Array.isArray(state.starEnergyUpgrades) ? safe.starEnergyUpgrades.map((_, i) => {
+        const v = state.starEnergyUpgrades[i];
+        return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+      }) : safe.starEnergyUpgrades;
+      while (game.starEnergyUpgrades.length < 6) game.starEnergyUpgrades.push(0);
+      game.upgrades = Array.isArray(state.upgrades) ? safe.upgrades.map((_, i) => {
+        const v = state.upgrades[i];
+        return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+      }) : safe.upgrades;
+while (game.upgrades.length < 11) game.upgrades.push(0);
+      game.subUpgrades = Array.isArray(state.subUpgrades) ? safe.subUpgrades.map((_, i) => Math.floor(state.subUpgrades[i] || 0)) : safe.subUpgrades;
+      while (game.subUpgrades.length < 10) game.subUpgrades.push(0);
+      // Fix perks to not exceed U1 level
+      const u1 = getU1Level();
+      let s1a = getS1aPerks();
+      let s1b = getS1bPerks();
+      let total = s1a + s1b;
+      if (total > u1) {
+        s1a = Math.min(s1a, u1);
+        s1b = Math.min(s1b, u1);
+        total = s1a + s1b;
+        if (total > u1) { s1a = u1; s1b = 0; }
+      }
+      game.subUpgrades[0] = s1a;
+      game.subUpgrades[7] = s1b;
+      game.cores = Number.isFinite(state.cores) ? Math.max(0, Math.floor(state.cores)) : safe.cores;
+      game.coreAllocations = Array.isArray(state.coreAllocations) ? safe.coreAllocations.map((_, i) => {
+        const v = state.coreAllocations[i];
+        return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+      }) : safe.coreAllocations;
+      game.coreInitGranted = state.coreInitGranted === true;
+      game.corePacingClaimedExp = Number.isFinite(state.corePacingClaimedExp) ? Math.max(0, Math.floor(state.corePacingClaimedExp)) : safe.corePacingClaimedExp;
+      game.coreEnhance1 = Number.isFinite(state.coreEnhance1) ? Math.max(0, Math.floor(state.coreEnhance1)) : safe.coreEnhance1;
+      game.coreEnhance2 = Number.isFinite(state.coreEnhance2) ? Math.max(0, Math.floor(state.coreEnhance2)) : safe.coreEnhance2;
+      game.tierUnlocked = state.tierUnlocked === true || game.tier >= 1 || game.rank >= 5;
+      game.subUnlocked = Array.isArray(state.subUnlocked) ? safe.subUnlocked.map((_, i) => {
+        const v = state.subUnlocked[i];
+        return v === true;
+      }) : safe.subUnlocked;
+      game.challengesUnlocked = state.challengesUnlocked === true || game.rank >= 11;
+      game.challengeActive = state.challengeActive === true;
+      game.challenge2Active = state.challenge2Active === true;
+      game.challenge1Completions = Number.isFinite(state.challenge1Completions) ? Math.max(0, Math.floor(state.challenge1Completions)) : safe.challenge1Completions;
+      game.challenge2Completions = Number.isFinite(state.challenge2Completions) ? Math.max(0, Math.floor(state.challenge2Completions)) : safe.challenge2Completions;
+      game.starsCoreUnlocked = state.starsCoreUnlocked === true || game.tier >= 3;
+      game.starsCoreLevel = Number.isFinite(state.starsCoreLevel) ? Math.max(0, Math.floor(state.starsCoreLevel)) : safe.starsCoreLevel;
+      game.radiation = Number.isFinite(state.radiation) ? Math.max(0, state.radiation) : safe.radiation;
+      game.radiationUpgrades = Array.isArray(state.radiationUpgrades)
+        ? safe.radiationUpgrades.map((_, i) => {
+          const v = state.radiationUpgrades[i];
+          return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+        })
+        : safe.radiationUpgrades;
+      while (game.radiationUpgrades.length < 5) game.radiationUpgrades.push(0);
+      while (game.radiationUpgrades.length > 5) game.radiationUpgrades.pop();
+      game.fusion = Number.isFinite(state.fusion) ? Math.max(0, state.fusion) : safe.fusion;
+      game.fusionUpgrades = Array.isArray(state.fusionUpgrades)
+        ? safe.fusionUpgrades.map((_, i) => {
+          const v = state.fusionUpgrades[i];
+          return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+        })
+        : safe.fusionUpgrades;
+      while (game.fusionUpgrades.length < 3) game.fusionUpgrades.push(0);
+      while (game.fusionUpgrades.length > 3) game.fusionUpgrades.pop();
+      game.tetr = Number.isFinite(state.tetr) ? Math.max(0, Math.floor(state.tetr)) : safe.tetr;
+      game.starsCoreAugments = Array.isArray(state.starsCoreAugments)
+        ? safe.starsCoreAugments.map((_, i) => {
+          const v = state.starsCoreAugments[i];
+          return Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+        })
+        : safe.starsCoreAugments;
+      while (game.starsCoreAugments.length < 4) game.starsCoreAugments.push(0);
+      while (game.starsCoreAugments.length > 4) game.starsCoreAugments.pop();
+      
+      while (game.upgrades.length < 10) game.upgrades.push(0);
+      while (game.upgrades.length > 10) game.upgrades.pop();
+      while (game.subUpgrades.length < 10) game.subUpgrades.push(0);
+      while (game.subUpgrades.length > 9) game.subUpgrades.pop();
+      game.starEnergy = Number.isFinite(state.starEnergy) ? Math.max(0, state.starEnergy) : safe.starEnergy;
+      game.achievements = Array.isArray(state.achievements) ? state.achievements : [];
+      game.totalPlayTime = Number.isFinite(state.totalPlayTime) ? Math.max(0, state.totalPlayTime) : 0;
+      game.tickspeedLevel = Number.isFinite(state.tickspeedLevel) ? Math.max(0, Math.floor(state.tickspeedLevel)) : 0;
+      game.tickspeedUnlocked = state.tickspeedUnlocked === true || game.rank >= 3;
+    }
+
+    function buildSavePayload() {
+      return {
+        stardust: game.stardust,
+        rank: game.rank,
+        tier: game.tier,
+        stars: game.stars,
+        starUpgrades: game.starUpgrades,
+        starEnergyUpgrades: game.starEnergyUpgrades,
+        upgrades: game.upgrades,
+        subUpgrades: game.subUpgrades,
+        tierUnlocked: game.tierUnlocked,
+        subUnlocked: game.subUnlocked,
+        cores: game.cores,
+        coreAllocations: game.coreAllocations,
+        coreInitGranted: game.coreInitGranted,
+        corePacingClaimedExp: game.corePacingClaimedExp,
+        coreEnhance1: game.coreEnhance1,
+        coreEnhance2: game.coreEnhance2,
+        challengesUnlocked: game.challengesUnlocked,
+        challengeActive: game.challengeActive,
+        challenge2Active: game.challenge2Active,
+        challenge1Completions: game.challenge1Completions,
+        challenge2Completions: game.challenge2Completions,
+        starsCoreUnlocked: game.starsCoreUnlocked,
+        starsCoreLevel: game.starsCoreLevel,
+        starEnergy: game.starEnergy,
+        radiation: game.radiation,
+        radiationUpgrades: game.radiationUpgrades,
+        fusion: game.fusion,
+        fusionUpgrades: game.fusionUpgrades,
+        tetr: game.tetr,
+        starsCoreAugments: game.starsCoreAugments,
+        achievements: game.achievements,
+        totalPlayTime: game.totalPlayTime,
+        tickspeedLevel: game.tickspeedLevel,
+        tickspeedUnlocked: game.tickspeedUnlocked,
+        savedAt: Date.now()
+      };
+    }
+
+    function saveGame() {
+      try {
+        const payload = buildSavePayload();
+        localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+        lastSavedAt = payload.savedAt;
+        saveMessage = 'Game saved.';
+      } catch (e) {
+        console.warn('Failed to save:', e);
+        saveMessage = 'Save failed: ' + (e.message || 'storage full?');
+      }
+    }
+
+    function loadGame() {
+      try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        applyState(parsed);
+        lastSavedAt = Number.isFinite(parsed.savedAt) ? parsed.savedAt : null;
+        return true;
+      } catch (e) {
+        console.warn('Failed to load save:', e);
+        return false;
+      }
+    }
+
+    function hardResetGame() {
+      localStorage.removeItem(SAVE_KEY);
+      applyState(defaultState());
+      lastSavedAt = null;
+      saveMessage = '';
+      render();
+    }
+
+    function downloadSaveFile() {
+      const payload = buildSavePayload();
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `stardust-save-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      saveMessage = 'Save file downloaded.';
+    }
+
+    function importSaveFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(String(reader.result || '{}'));
+          if (!parsed || typeof parsed !== 'object') throw new Error('Invalid save');
+          applyState(parsed);
+          saveGame();
+          saveMessage = 'Save file imported.';
+          render();
+        } catch (e) {
+          console.error('Import error:', e);
+          saveMessage = 'Import failed: ' + (e.message || 'invalid save file');
+          render();
+        }
+      };
+      reader.onerror = () => {
+        saveMessage = 'Import failed: could not read file';
+        render();
+      };
+      reader.readAsText(file);
+    }
+
+    function downloadGameHtml() {
+      const html = `<!DOCTYPE html>
+${document.documentElement.outerHTML}`;
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'stardust-incremental-game.html';
+      a.click();
+      URL.revokeObjectURL(url);
+      saveMessage = 'HTML file downloaded.';
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('tab-' + tabName).classList.add('active');
+      document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+      const inUpgrades = tabName === 'upgrades';
+      document.getElementById('u1CardWrap').style.display = inUpgrades ? 'block' : 'none';
+      document.getElementById('u2Card').style.display = inUpgrades ? 'block' : 'none';
+      document.getElementById('u3Card').style.display = inUpgrades ? 'block' : 'none';
+      document.getElementById('u2PowerCard').style.display = inUpgrades ? 'block' : 'none';
+      document.getElementById('pacingSystemCard').style.display = inUpgrades ? 'block' : 'none';
+      document.getElementById('u4Card').style.display = inUpgrades ? 'block' : 'none';
+      document.getElementById('u5Card').style.display = inUpgrades && upgrade5Unlocked() ? 'block' : 'none';
+      document.getElementById('u6Card').style.display = inUpgrades && upgrade6Unlocked() ? 'block' : 'none';
+      document.getElementById('u7Card').style.display = inUpgrades && upgrade7Unlocked() ? 'block' : 'none';
+      document.getElementById('u8Card').style.display = inUpgrades && upgrade8Unlocked() ? 'block' : 'none';
+      document.getElementById('u9Card').style.display = inUpgrades && upgrade9Unlocked() ? 'block' : 'none';
+      document.getElementById('u10Card').style.display = inUpgrades && upgrade10Unlocked() ? 'block' : 'none';
+      document.getElementById('u11Card').style.display = inUpgrades && upgrade11Unlocked() ? 'block' : 'none';
+    }
+
+    const safePow = (base, exp) => {
+      if (!Number.isFinite(base) || !Number.isFinite(exp) || base <= 0) return 1;
+      if (exp === 0) return 1;
+      if (exp < 100) return Math.pow(base, exp);
+      return Math.exp(exp * Math.log(base));
+    };
+
+    const safeMult = (v) => Number.isFinite(v) && v > 0 ? v : 1;
+
+    const safeAdd = (a, b) => {
+      if (a > 1e18 || b > 1e18) return Math.floor(a) + Math.floor(b);
+      return a + b;
+    };
+
+    const format = (n, digits = 2) => {
+      if (!Number.isFinite(n)) return '∞';
+      const sign = n < 0 ? '-' : '';
+      const value = Math.abs(n);
+      if (value < 1000) {
+        return sign + value.toLocaleString(undefined, { maximumFractionDigits: digits });
+      }
+      const suffixes = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp'];
+      let tier = 0;
+      let scaled = value;
+      while (scaled >= 1000 && tier < suffixes.length - 1) {
+        scaled /= 1000;
+        tier += 1;
+      }
+      if (tier >= suffixes.length - 1) {
+        const exp = Math.floor(Math.log10(value));
+        const mantissa = value / Math.pow(10, exp);
+        return `${sign}${mantissa.toFixed(2)}e${exp}`;
+      }
+      return `${sign}${scaled.toFixed(scaled >= 100 ? 0 : scaled >= 10 ? 1 : 2)}${suffixes[tier]}`;
+    };
+
+    const rankUnlocked = () => game.upgrades[3] >= 5;
+    const tierUnlocked = () => game.tierUnlocked || game.rank >= 5;
+    const tierRequirementRank = () => 5 + game.tier * 4;
+    const tetrUnlocked = () => game.tier >= 7 || game.tetr > 0;
+    const tetrRequirementTier = () => 8 + game.tetr * 4;
+    const starsCoreAugmentsUnlocked = () => game.tetr >= 1;
+    const tetrCoreSlotsUnlocked = () => game.tetr >= 1;
+    const starsCoreAugmentCosts = [1e30, 5e30, 2e31, 8e31];
+    const starsCoreAugmentCost = (index) => Math.floor((starsCoreAugmentCosts[index] || 0) * safePow(3, game.starsCoreAugments[index] || 0));
+    const starsCoreAugmentStardustMultiplier = () => 1 + (game.starsCoreAugments[0] || 0) * 0.5;
+    const starsCoreAugmentPacingMultiplier = () => 1 + (game.starsCoreAugments[1] || 0) * 0.35;
+    const starsCoreAugmentRankReduction = () => (game.starsCoreAugments[2] || 0) * 3;
+    const starsCoreAugmentXPDivisor = () => 1 + (game.starsCoreAugments[3] || 0) * 0.2;
+    function buyStarsCoreAugment(index) {
+      if (!starsCoreAugmentsUnlocked()) return;
+      const cost = starsCoreAugmentCost(index);
+      if (game.stardust < cost) return;
+      game.stardust -= cost;
+      game.starsCoreAugments[index] = (game.starsCoreAugments[index] || 0) + 1;
+      render();
+    }
+    const upgrade5Unlocked = () => game.rank >= 1;
+    const upgrade6Unlocked = () => game.tier >= 2;
+    const upgrade7Unlocked = () => game.stars >= 1;
+    const upgrade8Unlocked = () => game.stars >= 1;
+
+    const starEnergyMultiplier = () => (1 + (game.upgrades[6] || 0) * 0.4 * coreBoostMultiplier(13)) * seUpgrade6Multiplier();
+    const starEnergyPacing = () => 1 + (game.upgrades[6] || 0) * 0.1 * coreBoostMultiplier(13);
+    const starEnergyU3Boost = () => 1 + (game.upgrades[7] || 0) * 0.2 * coreBoostMultiplier(14);
+    const radiationCoreMultiplier = () => coreBoostMultiplier(15);
+    const upgrade6PacingBoost = () => 1 + (game.upgrades[5] || 0) * 0.05 * coreBoostMultiplier(12);
+    const sub1Unlocked = () => game.subUnlocked[0] || game.rank >= 4;
+    const sub2Unlocked = () => game.subUnlocked[1] || game.tier >= 1;
+    const sub2bUnlocked = () => game.tier >= 2;
+    const sub3Unlocked = () => game.subUnlocked[2] || game.tier >= 1;
+    const sub3bUnlocked = () => game.subUnlocked[8] || game.tier >= 1;
+    const sub5aUnlocked = () => game.rank >= 10 || game.subUpgrades[10] > 0;
+    const sub5bUnlocked = () => game.rank >= 10 || game.subUpgrades[11] > 0;
+    const sub4Unlocked = () => game.subUnlocked[5] || game.tier >= 3;
+    const sub4Requirement = () => (game.subUpgrades[5] + 1) * 10;
+    const sub6Unlocked = () => game.rank >= 14;
+    const sub6Level = () => sub6Unlocked() ? Math.floor(((game.upgrades[5] ?? 0) || 0) / 5) : 0;
+    const sub6Multiplier = () => {
+      const lvl = sub6Level() || 0;
+      return Math.pow(2, lvl);
+    };
+    const autoU1Unlocked = () => game.tier >= 1;
+    const autoU2Unlocked = () => game.rank >= 8;
+    const starLayerUnlocked = () => game.tier >= 3 || game.stars > 0;
+    const starRequirement = () => 30 + game.stars * 10;
+    const coreUnlocked = () => game.rank >= 8 || game.tier >= 2;
+
+    const coreCost = () => {
+      if (game.cores === 0) return 1e17;
+      return Math.floor(1e38 * Math.pow(1e5, game.cores - 1));
+    };
+
+    function buyCore() {
+      if (!coreUnlocked()) return;
+      const cost = coreCost();
+      if (game.stardust < cost) return;
+      game.stardust -= cost;
+      game.cores += 1;
+      render();
+    }
+
+    const coreStardustBoost = () => {
+      const cores = game.cores;
+      if (!cores || cores < 1) return 1;
+      const dust = game.stardust;
+      if (!dust || dust <= 1) return 1;
+      const boost = 1 + Math.log(dust) / Math.log(11);
+      return boost > 1 ? boost : 1;
+    };
+    const freeCores = () => game.cores;
+    const usedCores = () => 0;
+
+    const coreBoostMultiplier = (index) => {
+      if (index === 1) {
+        const ts = tickspeedMultiplier();
+        return Math.log(ts) / Math.log(12) + 1;
+      }
+      return 1;
+    };
+    const coreSubBoostMultiplier = (index) => 1;
+
+    const challengesUnlocked = () => game.challengesUnlocked || game.rank >= 11;
+    const tier3Unlocked = () => game.tier >= 3;
+    const tier3Autobuy = () => tier3Unlocked();
+    const tier2AutobuyU3 = () => game.tier >= 2; // Tier 2 unlocks U3 autobuy
+    const tier5Unlocked = () => game.tier >= 5;
+    const tier5Autobuy = () => tier5Unlocked();
+    const challenge1Goal = () => 30;
+    const challenge2Unlocked = () => tier3Unlocked();
+    const challenge2Goal = () => 25 + Math.min(game.challenge2Completions, 5) * 4;
+    const isInChallenge2 = () => game.challenge2Active;
+    const challenge1PacingCap = () => 1.5;
+    const isInChallenge = () => game.challengeActive || game.challenge2Active;
+
+    const starsCoreUnlocked = () => game.starsCoreUnlocked;
+    const starsCoreLevel = () => game.starsCoreLevel || 0;
+    const starsCoreXP = () => game.stardust;
+    const starsCoreXPForLevel = (level) => {
+      const base = game.tier >= 7 ? Math.pow(3, level) : (game.tier >= 4 ? Math.pow(5, level) : Math.pow(10, level));
+      return base / starsCoreAugmentXPDivisor();
+    };
+    const starsCoreTotalXPForNextLevel = () => starsCoreXPForLevel(starsCoreLevel() + 1);
+    const starsCoreProgress = () => starsCoreXP() / starsCoreTotalXPForNextLevel();
+
+    const tier11StarsCoreRadiationMultiplier = () => tier11Unlocked() ? (1 + Math.log10(1 + Math.max(0, game.radiation)) * 0.12) : 1;
+    const starsCoreStardustBoost = () => (1 + starsCoreLevel() * 0.2) * starUpgrade5Multiplier() * starsCoreAugmentStardustMultiplier() * tier11StarsCoreRadiationMultiplier();
+    const starsCorePacingBoost = () => (1 + Math.floor(starsCoreLevel() / 3) * 0.5) * starsCoreAugmentPacingMultiplier() * tier11StarsCoreRadiationMultiplier();
+    const starsCoreRankReduction = () => Math.floor(starsCoreLevel() / 4) * 2 + starsCoreAugmentRankReduction();
+
+    const starsCoreLevelForNextStar = () => 30 + game.stars * 10;
+    const starsCoreAtMaxForStar = () => starsCoreLevel() >= starsCoreLevelForNextStar();
+
+    function checkStarsCoreLevel() {
+      if (!starsCoreUnlocked()) return;
+      while (starsCoreXP() >= starsCoreTotalXPForNextLevel()) {
+        game.starsCoreLevel += 1;
+      }
+    }
+
+    function generateStar() {
+      if (game.stars >= 20) return;
+      if (!starsCoreAtMaxForStar()) return;
+      
+      if (game.stars >= 3) {
+        game.stars += 1;
+        game.starEnergy += 1;
+        render();
+        return;
+      }
+      
+      game.stars += 1;
+      
+      const keepCoreInit = game.coreInitGranted;
+      const keepCoreEnhance1 = game.coreEnhance1;
+      const keepCoreEnhance2 = game.coreEnhance2;
+      const keepSEUpgrades = [...game.starEnergyUpgrades];
+      game.tier = 0;
+      game.rank = 0;
+      game.stardust = 0;
+      game.upgrades = [game.upgrades[0], 0, 0, 0, 0, 0, game.upgrades[6], game.upgrades[7], game.upgrades[8] || 0, game.upgrades[9] || 0, game.upgrades[10] || 0];
+      game.subUpgrades = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      game.cores = 0;
+      game.coreAllocations = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      game.coreInitGranted = keepCoreInit;
+      game.coreEnhance1 = keepCoreEnhance1;
+      game.coreEnhance2 = keepCoreEnhance2;
+      game.challengeActive = false;
+      game.challenge2Active = false;
+      game.starsCoreLevel = 0;
+      game.starEnergy += 1;
+      game.starEnergyUpgrades = keepSEUpgrades;
+      
+      render();
+    };
+
+    function showToast(message, type = 'default') {
+      const existing = document.getElementById('toast');
+      if (existing) existing.remove();
+      const toast = document.createElement('div');
+      toast.id = 'toast';
+      toast.textContent = message;
+      if (type === 'gold') toast.classList.add('gold');
+      else if (type === 'blue') toast.classList.add('blue');
+      else if (type === 'orange') toast.classList.add('orange');
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function animateValueChange(elementId) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      el.classList.remove('countUp');
+      void el.offsetWidth;
+      el.classList.add('countUp');
+      setTimeout(() => el.classList.remove('countUp'), 300);
+    }
+
+    let lastStardust = 0;
+    let lastGps = 0;
+    let lastRadiation = 0;
+    let lastFusion = 0;
+    let lastStars = 0;
+    let lastRadiationAnimAt = 0;
+    let lastFusionAnimAt = 0;
+    let lastStarAnimAt = 0;
+
+    function animateClassOnce(elementId, className, durationMs = 500) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      el.classList.remove(className);
+      void el.offsetWidth;
+      el.classList.add(className);
+      setTimeout(() => el.classList.remove(className), durationMs);
+    }
+
+    function flashCard(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('flash');
+        void el.offsetWidth;
+        el.classList.add('flash');
+      }
+    }
+
+    const starsUnlocked = () => game.stars >= 1;
+    const starCost = () => Math.floor(1e10 * Math.pow(15, game.stars));
+    const starUpgradeCosts = [
+      1e12,
+      5e12,
+      1e14,
+      5e14,
+      1e16,
+      5e16,
+      1e18,
+      5e18
+    ];
+    const starUpgradeNames = [
+      'Star Dust Boost',
+      'Star Rank Boost', 
+      'Star Tier Boost',
+      'Star Pacing Boost',
+      'Star Core Boost',
+      'Star Energy Boost',
+      'Star Generation Boost',
+      'Star Power Boost'
+    ];
+    const seUpgradeCosts = [250, 500, 10000, 1e24, 5e24, 1e26];
+    const seUpgradeNames = [
+      'Stardust Boost & Auto Rank',
+      'Star Energy Booster', 
+      'Stardust Boost',
+      'Stardust Gen Boost',
+      'Radiation Boost',
+      'Star Energy Self Boost'
+    ];
+    const seUpgradeDescriptions = [
+      '10x stardust generation + auto rank up',
+      'Star Energy gains +1 per rank +1 per tier',
+      '3x stardust generation',
+      '100x stardust generation',
+      '2x radiation generation',
+      'Star Energy boost +25%'
+    ];
+    const seUpgrade4Unlocked = () => game.tetr >= 2;
+    const seUpgrade5Unlocked = () => game.tetr >= 2;
+    const seUpgrade6Unlocked = () => game.tetr >= 2;
+
+    const seUpgrade3Unlocked = () => game.starEnergyUpgrades[3] >= 1;
+    const seUpgrade0Multiplier = () => (game.starEnergyUpgrades[0] || 0) >= 1 ? 10 : 1;
+    const seUpgrade1Multiplier = () => (game.starEnergyUpgrades[1] || 0) >= 1 ? (1 + game.rank + game.tier) : 1;
+    const seUpgrade2Multiplier = () => (game.starEnergyUpgrades[2] || 0) >= 1 ? 3 : 1;
+    const seUpgrade4Multiplier = () => (game.starEnergyUpgrades[3] || 0) >= 1 ? 100 : 1;
+    const seUpgrade5Multiplier = () => (game.starEnergyUpgrades[4] || 0) >= 1 ? 2 : 1;
+    const seUpgrade6Multiplier = () => (game.starEnergyUpgrades[5] || 0) >= 1 ? 1.25 : 1;
+    const tetr2PacingRadiationMultiplier = () => game.tetr >= 2 ? 1.1 : 1;
+
+    const starUpgrade1Multiplier = () => (1 + (game.starUpgrades[0] || 0) * 0.5) * tier11StarRadiationMultiplier();
+    const starUpgrade2Multiplier = () => (1 + (game.starUpgrades[1] || 0) * 0.3) * tier11StarRadiationMultiplier();
+    const starUpgrade3Multiplier = () => (1 + (game.starUpgrades[2] || 0) * 0.25) * tier11StarRadiationMultiplier();
+    const starUpgrade4Multiplier = () => (1 + (game.starUpgrades[3] || 0) * 0.2) * tier11StarRadiationMultiplier();
+    const starUpgrade5Multiplier = () => (1 + (game.starUpgrades[4] || 0) * 0.15) * tier11StarRadiationMultiplier();
+    const starUpgrade6Multiplier = () => (1 + (game.starUpgrades[5] || 0) * 0.15) * tier11StarRadiationMultiplier();
+    const starUpgrade7Multiplier = () => (1 + (game.starUpgrades[6] || 0) * 0.1) * tier11StarRadiationMultiplier();
+    const tier11StarRadiationMultiplier = () => tier11Unlocked() ? (1 + Math.log10(1 + Math.max(0, game.radiation)) * 0.08) : 1;
+    const starUpgrade8Multiplier = () => (1 + (game.starUpgrades[7] || 0) * 0.1) * tier11StarRadiationMultiplier();
+
+    const tier6Unlocked = () => game.tier >= 6;
+    const tier7Unlocked = () => game.tier >= 7;
+    const tier8Unlocked = () => game.tier >= 8;
+    const tier11Unlocked = () => game.tier >= 11;
+    const starUpgrade2Unlocked = () => game.tier >= 6;
+    const radiationUnlocked = () => game.stars >= 5;
+    const nuclearFusionUnlocked = () => game.stars >= 8 || game.fusion > 0;
+    const radiationUpgradeCosts = [10, 25, 60, 150, 400];
+    const fusionUpgradeCosts = [5, 15, 40];
+    const radiationUpgradeMultiplier1 = () => 1 + (game.radiationUpgrades[0] || 0) * 0.25;
+    const radiationUpgradeMultiplier2 = () => 1 + (game.radiationUpgrades[1] || 0) * 0.15;
+    const radiationUpgradeMultiplier3 = () => 1 + (game.radiationUpgrades[2] || 0) * 0.12;
+    const radiationUpgradeMultiplier4 = () => 1 + (game.radiationUpgrades[3] || 0) * 0.10;
+    const radiationUpgradeMultiplier5 = () => 1 + (game.radiationUpgrades[4] || 0) * 0.08;
+    const fusionMultiplier1 = () => 1 + (game.fusionUpgrades[0] || 0) * 0.35;
+    const fusionMultiplier2 = () => 1 + (game.fusionUpgrades[1] || 0) * 0.30;
+    const fusionMultiplier3 = () => 1 + (game.fusionUpgrades[2] || 0) * 0.20;
+    const tier11CoreRadiationMultiplier = () => tier11Unlocked() ? (1 + usedCores() * 0.02) : 1;
+    const radiationGainPerSecond = () => {
+      if (!radiationUnlocked()) return 0;
+      const starPart = Math.max(0, game.stars - 4) * 0.12;
+      const dustPart = Math.log10(Math.max(1, game.stardust)) / 45;
+      return Math.max(0, (starPart + dustPart) * fusionMultiplier2() * radiationCoreMultiplier() * tier11CoreRadiationMultiplier() * seUpgrade5Multiplier() * tetr2PacingRadiationMultiplier());
+    };
+    const fusionGainPerSecond = () => {
+      if (!nuclearFusionUnlocked()) return 0;
+      const radPart = safePow(Math.max(1, game.radiation) / 1000, 0.6);
+      const corePart = 1 + starsCoreLevel() * 0.02;
+      return Math.max(0, (radPart * corePart * radiationUpgradeMultiplier4()) / 25);
+    };
+    function buyRadiationUpgrade(index) {
+      if (!radiationUnlocked()) return;
+      const base = radiationUpgradeCosts[index] || 0;
+      if (base <= 0) return;
+      const level = game.radiationUpgrades[index] || 0;
+      const cost = Math.floor(base * safePow(1.9, level));
+      if (game.radiation < cost) return;
+      game.radiation -= cost;
+      game.radiationUpgrades[index] = level + 1;
+      render();
+    }
+    function buyFusionUpgrade(index) {
+      if (!nuclearFusionUnlocked()) return;
+      const base = fusionUpgradeCosts[index] || 0;
+      if (base <= 0) return;
+      const level = game.fusionUpgrades[index] || 0;
+      const cost = Math.floor(base * safePow(2.2, level));
+      if (game.fusion < cost) return;
+      game.fusion -= cost;
+      game.fusionUpgrades[index] = level + 1;
+      render();
+    }
+
+    function buySEUpgrade(index) {
+      if (index >= 3 && game.tetr < 2) return;
+      if (game.starEnergy < seUpgradeCosts[index]) return;
+      if (game.starEnergyUpgrades[index] >= 1) return;
+      game.starEnergy -= seUpgradeCosts[index];
+      game.starEnergyUpgrades[index] = 1;
+      render();
+    }
+
+    function buyStarUpgrade(index) {
+      const cost = starUpgradeCosts[index] * Math.pow(2, game.starUpgrades[index]);
+      if (game.stardust < cost) return;
+      if (index >= 4 && !starUpgrade2Unlocked()) return;
+      game.stardust -= cost;
+      game.starUpgrades[index] += 1;
+      render();
+    }
+
+    const hasU2NoWaste = () => false;
+    
+    const starAutobuyU2 = () => false;
+
+    const respecCores = () => {
+      game.coreAllocations = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      game.stardust = 0;
+      const u7 = game.upgrades[6] || 0;
+      const u8 = game.upgrades[7] || 0;
+game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[9] || 0, game.upgrades[10] || 0];
+      game.subUpgrades = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      game.cores = 0;
+      render();
+    };
+    const upgrade5Cap = () => game.tier >= 2 ? 100 : 20;
+    const upgrade1Cap = () => (game.tier >= 10 ? null : 8000);
+
+    const rankRequirementU4Level = () => {
+      let base;
+      if (game.rank <= 4) {
+        base = 17 + game.rank * 3;
+      } else if (game.rank <= 7) {
+        base = 38 + (game.rank - 5) * 4;
+      } else if (game.rank === 8) {
+        base = 68;
+      } else if (game.rank === 9) {
+        base = 160;
+      } else {
+        base = 160 + (game.rank - 10) * 20;
+      }
+      const reduction = starsCoreRankReduction();
+      const req = Math.max(20, base - reduction);
+      return Number.isFinite(req) && req > 0 ? req : 100;
+    };
+
+    const rankPerRankBoost = () => 1.2;
+
+    const rankGenerationMultiplier = () => {
+      if (game.rank === 0) return 1;
+      let mult = 2.5 * safePow(rankPerRankBoost(), Math.max(0, game.rank - 1));
+      if (game.rank >= 15 && starsCoreUnlocked()) {
+        mult *= (1 + starsCoreLevel() * 0.1);
+      }
+      return mult * starUpgrade2Multiplier();
+    };
+
+    const rank3BaseGenBonus = () => game.rank >= 3 ? 1.05 : 1;
+
+    const tickspeedUnlocked = () => game.tickspeedUnlocked || game.rank >= 3;
+    const tickspeedMultiplier = () => {
+      const baseMult = game.rank >= 7 ? 1.3 : 1.12;
+      const base = game.tickspeedUnlocked ? Math.pow(baseMult, game.tickspeedLevel) : 1;
+      const s3bBonus = sub3bUnlocked() ? 1 + getS3bPerks() * 0.005 : 1;
+      return base * s3bBonus;
+    };
+    const tickspeedCost = () => {
+      const baseCostMult = game.rank >= 7 ? 2.6 : 3;
+      const lvl = game.tickspeedLevel;
+      let cost;
+      if (lvl > 80) {
+        // Extra harsh after level 80
+        cost = 1000 * Math.pow(baseCostMult, 80) * Math.pow(10, lvl - 80);
+      } else {
+        cost = 1000 * Math.pow(baseCostMult, lvl);
+      }
+      return Math.floor(cost / sub5bTickspeedCostDivisor());
+    };
+
+    function buyTickspeed() {
+      if (!tickspeedUnlocked()) return;
+      if (game.stardust < tickspeedCost()) return;
+      game.stardust -= tickspeedCost();
+      game.tickspeedLevel += 1;
+      render();
+    }
+
+    const stabilizerRankBoost = () => 1;
+
+    const stabilizerBasePercent = () => {
+      const lvl = game.upgrades[3];
+      const preSoftcap = Math.min(lvl, 10) * 35;
+      const postLevels = Math.max(0, lvl - 10);
+      const postSoftcap = postLevels * 5;
+      return (preSoftcap + postSoftcap) * coreBoostMultiplier(3);
+    };
+
+    const stabilizerMultiplier = () => (1 + stabilizerBasePercent() / 100) * tierU3ToU4Boost();
+
+    const tierU3ToU1Boost = () => (1 + game.tier * 0.1) * starUpgrade3Multiplier();
+    const tierU3ToU4Boost = () => 1 + game.tier * 0.06;
+
+    // S1 Perks: Each U1 level = 1 perk to allocate between S1a and S1b
+    const getU1Level = () => game.upgrades[0] || 0;
+    const getS1aPerks = () => Math.max(0, game.subUpgrades[0] || 0);
+    const getS1bPerks = () => Math.max(0, game.subUpgrades[7] || 0);
+    const getFreePerks = () => 0;
+
+    // S1a: +3% to U1 BASE VALUE per perk
+    const sub1U1BaseBonus = () => 1 + getS1aPerks() * 0.03;
+    const sub1CoreMultiplier = () => coreSubBoostMultiplier(5);
+    
+    // S1b: +3% stardust multiplier per perk
+    const sub1bStardustMultiplier = () => 1 + getS1bPerks() * 0.03;
+
+    function allocateS1a(change) {
+      const u1 = getU1Level();
+      const s1a = getS1aPerks();
+      const s1b = getS1bPerks();
+      const newS1a = s1a + change;
+      if (newS1a < 0 || s1b + newS1a > u1) return false;
+      game.subUpgrades[0] = newS1a;
+      game.subUpgrades[7] = s1b;
+      render();
+      return true;
+    }
+
+    function allocateS1b(change) {
+      const u1 = getU1Level();
+      const s1a = getS1aPerks();
+      const s1b = getS1bPerks();
+      const newS1b = s1b + change;
+      if (newS1b < 0 || s1a + newS1b > u1) return false;
+      game.subUpgrades[7] = newS1b;
+      render();
+      return true;
+    }
+
+    const getS2aPerks = () => game.subUpgrades[1] || 0;
+    const getS2bPerks = () => game.subUpgrades[9] || 0;
+    const getS3aPerks = () => game.subUpgrades[2] || 0;
+    const getS3bPerks = () => game.subUpgrades[8] || 0;
+
+    function allocateS2a(change) {
+      const max = game.upgrades[1] || 0;
+      const s2a = getS2aPerks();
+      const s2b = getS2bPerks();
+      const newS2a = s2a + change;
+      if (newS2a < 0 || s2b + newS2a > max) return false;
+      game.subUpgrades[1] = newS2a;
+      render();
+      return true;
+    }
+
+    function allocateS2b(change) {
+      if (!sub2bUnlocked()) return false;
+      const max = game.upgrades[1] || 0;
+      const s2a = getS2aPerks();
+      const s2b = getS2bPerks();
+      const newS2b = s2b + change;
+      if (newS2b < 0 || s2a + newS2b > max) return false;
+      game.subUpgrades[9] = newS2b;
+      render();
+      return true;
+    }
+
+    function allocateS3a(change) {
+      const max = game.upgrades[2] || 0;
+      const s3a = getS3aPerks();
+      const s3b = getS3bPerks();
+      const newS3a = s3a + change;
+      if (newS3a < 0 || s3b + newS3a > max) return false;
+      game.subUpgrades[2] = newS3a;
+      render();
+      return true;
+    }
+
+    function allocateS3b(change) {
+      const max = game.upgrades[2] || 0;
+      const s3a = getS3aPerks();
+      const s3b = getS3bPerks();
+      const newS3b = s3b + change;
+      if (newS3b < 0 || s3a + newS3b > max) return false;
+      game.subUpgrades[8] = newS3b;
+      render();
+      return true;
+    }
+
+    const getS5aPerks = () => game.subUpgrades[10] || 0;
+    const getS5bPerks = () => game.subUpgrades[11] || 0;
+
+    function allocateS5a(change) {
+      const max = game.upgrades[4] || 0;
+      const s5a = getS5aPerks();
+      const s5b = getS5bPerks();
+      const newS5a = s5a + change;
+      if (newS5a < 0 || s5b + newS5a > max) return false;
+      game.subUpgrades[10] = newS5a;
+      render();
+      return true;
+    }
+
+    function allocateS5b(change) {
+      if (!sub5bUnlocked()) return false;
+      const max = game.upgrades[4] || 0;
+      const s5a = getS5aPerks();
+      const s5b = getS5bPerks();
+      const newS5b = s5b + change;
+      if (newS5b < 0 || s5a + newS5b > max) return false;
+      game.subUpgrades[11] = newS5b;
+      render();
+      return true;
+    }
+
+    const sub3U1Multiplier = () => 1;
+    const sub4U3Multiplier = () => sub4Unlocked() ? (1 + Math.floor(game.upgrades[3] / 10) * 0.15) * coreSubBoostMultiplier(11) : 1;
+
+    const getU2Exponent = () => {
+      const base = 0.7;
+      const increase = Math.floor(game.upgrades[1] / 10) * 0.01;
+      const challenge2Bonus = Math.min((game.challenge2Completions || 0) * 0.01, 0.05);
+      const result = Math.min(0.85, base + increase + challenge2Bonus);
+      return Number.isFinite(result) && result > 0 ? result : 0.7;
+    };
+
+    const sub2U2Bonus = () => coreSubBoostMultiplier(6);
+
+    const pacingMaxMultiplier = () => {
+      if (isInChallenge()) return challenge1PacingCap();
+      if (game.rank >= 8) return 10000;
+      if (game.rank >= 2) return 100;
+      return 1.5;
+    };
+
+    const pacingProgressionScore = () => {
+      const u1 = game.upgrades[0] || 0;
+      const sub1Part = sub1Unlocked() ? (game.subUpgrades[0] || 0) : 0;
+      const u2 = game.upgrades[1] || 0;
+      const u3 = game.upgrades[2] || 0;
+      const u4 = game.upgrades[3] || 0;
+      return Math.max(0, u1 + sub1Part + u2 + u3 + u4);
+    };
+
+    const pacingBreakdown = () => {
+      const progression = pacingProgressionScore();
+      const capMultiplier = pacingMaxMultiplier();
+      const capAdd = capMultiplier === null ? null : capMultiplier - 1;
+      const maybeCap = (value) => (capAdd === null ? value : Math.min(capAdd, value));
+
+      const progressPart = maybeCap(progression * 0.02);
+
+      const rankLinearBaseRaw = game.rank * 0.08;
+      const rankLinearBase = maybeCap(rankLinearBaseRaw);
+      const rankMultiplier = game.rank >= 6 ? safePow(1.06, game.rank) : 1;
+      const rankPart = game.rank >= 6 ? Math.max(0, (1 + rankLinearBase) * rankMultiplier - 1) : rankLinearBase;
+
+      const tierLinearRaw = game.tier * 0.1;
+      const tierLinearBase = maybeCap(tierLinearRaw);
+      const tierMultiplier = game.rank >= 9 ? safePow(1.08, game.tier) : 1;
+      const tierPart = game.rank >= 9 ? Math.max(0, (1 + tierLinearBase) * tierMultiplier - 1) : tierLinearBase;
+
+      const corePacingPart = 0;
+      const starsCorePacingPart = starsCoreUnlocked() ? (starsCorePacingBoost() - 1) : 0;
+      const tickspeedPacingPart = game.rank >= 4 && game.tickspeedUnlocked ? game.tickspeedLevel * 0.15 : 0;
+      const rank4PacingPart = game.rank >= 4 ? game.rank * 0.12 : 0;
+      const totalAdd = progressPart + rankPart + tierPart + corePacingPart + tickspeedPacingPart + rank4PacingPart;
+      const total = 1 + (capAdd === null ? totalAdd : Math.min(capAdd, totalAdd));
+      return { total, progressPart, rankPart, tierPart, corePacingPart, capMultiplier, starsCorePacingPart, tickspeedPacingPart, rank4PacingPart };
+    };
+
+    const pacingBoost = () => {
+      const sub3PacingBoost = sub3Unlocked() ? Math.pow(1.05, getS3aPerks()) : 1;
+      const breakdown = pacingBreakdown();
+      if (!Number.isFinite(breakdown.total) || breakdown.total <= 0 || isNaN(breakdown.total)) return 1;
+      let baseBoost = breakdown.total;
+      baseBoost *= starsCorePacingBoost();
+      baseBoost *= upgrade6PacingBoost();
+      baseBoost *= starEnergyPacing();
+      baseBoost *= starUpgrade4Multiplier();
+      baseBoost *= upgrade9PacingMultiplier();
+      baseBoost *= radiationUpgradeMultiplier3();
+      baseBoost *= fusionMultiplier3();
+      baseBoost *= sub3PacingBoost;
+      const capMultiplier = pacingMaxMultiplier();
+      const capped = Math.min(baseBoost, capMultiplier);
+      if (!Number.isFinite(capped) || capped <= 0 || isNaN(capped)) return 1;
+      return Math.max(1, capped);
+    };
+
+    const costReducer = () => {
+      if (!upgrade5Unlocked()) return 1;
+      const level = game.upgrades[4];
+      const primaryLevels = Math.min(5, level);
+      const primaryReduce = Math.min(0.4, 1 - safePow(0.96, primaryLevels));
+      let extraReduce = 0;
+      const extraLevels = Math.max(0, level - 5);
+      for (let i = 0; i < extraLevels; i += 1) {
+        const u5Level = i + 6;
+        if (u5Level <= 50) {
+          extraReduce += 0.02 / (1 + i * 0.3);
+        } else {
+          const lateIndex = u5Level - 50;
+          extraReduce += 0.006 / (1 + lateIndex * 0.7);
+        }
+      }
+      const coreU5Factor = 1 + (coreBoostMultiplier(4) - 1) * 0.7;
+      const totalReduce = Math.min(0.99, (primaryReduce + extraReduce) * coreU5Factor);
+      return 1 - totalReduce;
+    };
+
+    const sub5aCostDivisor = () => {
+      if (!sub5aUnlocked()) return 1;
+      return Math.pow(1.125, getS5aPerks());
+    };
+
+    const sub5bTickspeedCostDivisor = () => {
+      if (!sub5bUnlocked()) return 1;
+      return Math.pow(1.5, getS5bPerks());
+    };
+
+    const postThresholdForUpgrade = (index) => {
+      if (index === 1) return 5;
+      if (index === 2) return 8;
+      if (index === 3) return 18;
+      if (index >= 6) return 999;
+      return 30;
+    };
+
+    const postScalingMultiplier = (index, level) => {
+      const threshold = postThresholdForUpgrade(index);
+      if (level < threshold) return 1;
+      const extra = level - threshold + 1;
+      if (index === 1) {
+        return safePow(2.5, extra) * (1 + extra * 0.5 + extra * extra * 0.1);
+      }
+      if (index === 3) {
+        return safePow(1.2, extra) * (1 + extra * 0.12 + extra * extra * 0.02);
+      }
+      return safePow(1.18, extra) * (1 + extra * 0.1 + extra * extra * 0.015);
+    };
+
+    const upgrade9Unlocked = () => game.tier >= 7;
+    const upgrade10Unlocked = () => game.tier >= 10;
+    const upgrade11Unlocked = () => game.tier >= 14;
+    const upgrade9PacingMultiplier = () => {
+      if (!upgrade9Unlocked()) return 1;
+      return safePow(1.35, game.upgrades[8] || 0);
+    };
+
+    const upgrade10RadiationFactorPerLevel = () => {
+      if (!upgrade10Unlocked()) return 1;
+      const radiationLog = Math.log10(1 + Math.max(0, game.radiation));
+      return Math.min(3.2, 1 + radiationLog * 0.08);
+    };
+
+    const upgrade10StardustMultiplier = () => {
+      if (!upgrade10Unlocked()) return 1;
+      const lvl = game.upgrades[9] || 0;
+      if (lvl <= 0) return 1;
+      return safePow(upgrade10RadiationFactorPerLevel(), lvl);
+    };
+
+    const upgrade6StardustMultiplier = () => {
+      if (!upgrade6Unlocked()) return 1;
+      const lvl = game.upgrades[5] || 0;
+      if (lvl <= 0) return 1;
+      return Math.pow(3, lvl);
+    };
+
+    const upgrade11RadiationFactorPerLevel = () => {
+      if (!upgrade11Unlocked()) return 1;
+      const radiationLog = Math.log10(1 + Math.max(0, game.radiation));
+      return Math.min(15, 1 + radiationLog * 0.4);
+    };
+
+    const upgrade11StarEnergyMultiplier = () => {
+      if (!upgrade11Unlocked()) return 1;
+      const lvl = game.upgrades[10] || 0;
+      if (lvl <= 0) return 1;
+      return safePow(upgrade11RadiationFactorPerLevel(), lvl);
+    };
+
+    const upgradeCost = (index) => {
+      if (index >= 6 && index < 8) return 0;
+      if (index === 8) {
+        if (!upgrade9Unlocked()) return 0;
+        const growth = 2.4;
+        const level = game.upgrades[8] || 0;
+        const base = game.baseCosts[8] * safePow(growth, level);
+        return Math.floor(base);
+      }
+      if (index === 9) {
+        if (!upgrade10Unlocked()) return 0;
+        const growth = 1.85;
+        const level = game.upgrades[9] || 0;
+        return game.baseCosts[9] * safePow(growth, level);
+      }
+      if (index === 10) {
+        if (!upgrade11Unlocked()) return 0;
+        const growth = 2.0;
+        const level = game.upgrades[10] || 0;
+        return game.baseCosts[10] * safePow(growth, level);
+      }
+      let growth = [1.15, 1.25, 1.35, 1.4, 1.5, 1.6][index];
+      if (index === 5) {
+        const u6Level = game.upgrades[5] || 0;
+        if (u6Level > 5) {
+          // Extra harsh scaling after level 5
+          return game.baseCosts[5] * Math.pow(100, 5) * Math.pow(1e6, u6Level - 5);
+        }
+        growth = 100;
+      }
+      if (!growth) return 0;
+      const level = game.upgrades[index];
+      const base = game.baseCosts[index] * safePow(growth, level);
+      const scaled = base * postScalingMultiplier(index, level);
+      let finalCost = scaled;
+      if (index !== 4) finalCost *= costReducer();
+      if (game.rank >= 2 && index >= 0 && index <= 3) finalCost *= 0.3;
+      finalCost /= sub5aCostDivisor();
+      if (index === 1 && hasU2NoWaste()) finalCost *= 0.5;
+      return Math.floor(finalCost);
+    };
+
+    const upgradeStarEnergyCost = (index) => {
+      if (index < 6 || index > 7) return 0;
+      const base = [1, 2][index - 6];
+      const growth = [1.5, 1.8][index - 6];
+      if (!base || !growth) return 0;
+      let cost = base * safePow(growth, game.upgrades[index]);
+      return Math.floor(cost);
+    };
+
+    // S1 now uses perks system instead of requirement
+    // const sub1Requirement = () => (game.subUpgrades[0] + 1) * 4;
+
+    const upgrade2BasePercentRaw = () => {
+      const base = 30 * coreBoostMultiplier(1);
+      const calibrationBoost = (1 + game.upgrades[2] * 0.12 * coreBoostMultiplier(2) * starEnergyU3Boost()) * sub4U3Multiplier();
+      const stabilizerBoost = stabilizerMultiplier() * stabilizerRankBoost();
+      return base * calibrationBoost * stabilizerBoost;
+    };
+
+    const dampenPercent = (rawPercent) => {
+      if (rawPercent <= 60) return rawPercent;
+      if (rawPercent <= 180) return 60 + safePow(rawPercent - 60, 0.5) * 4.2;
+      return 60 + safePow(120, 0.5) * 4.2 + Math.log10(rawPercent - 179) * 5.2;
+    };
+
+    const powerU2Levels = (levels) => {
+      if (levels <= 0) return 0;
+      const exponent = getU2Exponent();
+      const base = Math.pow(levels + 1, exponent);
+      return base;
+    };
+
+    const powerU2LevelsNoSoftcap = (levels) => {
+      return powerU2Levels(levels);
+    };
+
+    const currentBaseGeneration = () => {
+      const u1Level = 1 + game.upgrades[0];
+      const pacing = pacingBoost();
+      const sub1Mult = sub1CoreMultiplier() * sub1U1BaseBonus();
+      const sub3Mult = sub3U1Multiplier();
+      const core0 = coreBoostMultiplier(0);
+      const starsCore = starsCoreStardustBoost();
+      const star1 = starUpgrade1Multiplier();
+      
+      const u1Base = Math.max(1, u1Level) * Math.max(1, sub1Mult) * Math.max(1, sub3Mult) * Math.max(1, core0) * Math.max(1, starsCore) * Math.max(1, star1);
+      
+      const rankMult = rankGenerationMultiplier();
+      const tierMult = tierU3ToU1Boost();
+      const energyMult = starEnergyMultiplier();
+      const sub6Mult = sub6Multiplier();
+      const se0 = seUpgrade0Multiplier();
+      const se2 = seUpgrade2Multiplier();
+      const se4 = seUpgrade4Multiplier();
+      const star7 = starUpgrade7Multiplier();
+      const sub1b = sub1bStardustMultiplier();
+      
+      let gen = u1Base * Math.max(1, rankMult) * Math.max(1, tierMult) * Math.max(1, pacing) * Math.max(1, energyMult) * Math.max(1, sub6Mult) * Math.max(1, se0) * Math.max(1, se2) * Math.max(1, se4) * Math.max(1, star7) * Math.max(1, sub1b);
+      if (!Number.isFinite(gen) || gen <= 0 || isNaN(gen)) gen = 0;
+      
+      const coreBoost = coreStardustBoost();
+      const rad1 = radiationUpgradeMultiplier1();
+      const rad5 = radiationUpgradeMultiplier5();
+      const fusion1 = fusionMultiplier1();
+      const u10 = upgrade10StardustMultiplier();
+      const rank3 = rank3BaseGenBonus();
+      const tickspeed = tickspeedMultiplier();
+      
+      let final = gen * Math.max(1, rad1) * Math.max(1, rad5) * Math.max(1, fusion1) * Math.max(1, u10) * Math.max(1, rank3) * Math.max(1, tickspeed) * Math.max(1, upgrade6StardustMultiplier()) * coreBoost;
+      if (!Number.isFinite(final) || final <= 0 || isNaN(final)) final = 0;
+      return final;
+    };
+
+    const currentUpgrade2Multiplier = () => {
+      const u2PercentEach = dampenPercent(upgrade2BasePercentRaw());
+      const u2LevelsWeighted = powerU2Levels(game.upgrades[1]);
+      const base = safePow(1 + u2PercentEach / 100, u2LevelsWeighted);
+      const sub2aBoost = sub2Unlocked() ? Math.pow(1.125, getS2aPerks()) : 1;
+      const sub2bBoost = sub2bUnlocked() ? (1 + getS2bPerks() * 0.1) : 1;
+      const sub2Boost = sub2aBoost * sub2bBoost;
+      const star8 = starUpgrade8Multiplier();
+      let result = base * sub2Boost * star8;
+      return Number.isFinite(result) && result > 0 ? Math.max(1, result) : 1;
+    };
+
+    const generationPerSecond = () => {
+      let base = currentBaseGeneration();
+      let u2mult = currentUpgrade2Multiplier();
+      let gen = base * u2mult;
+      if (!Number.isFinite(gen) || gen <= 0 || isNaN(gen)) gen = 0;
+      return Math.max(1, gen);
+    };
+
+    const getGenerationDisplay = () => {
+      const baseGen = currentBaseGeneration();
+      const u2Mult = currentUpgrade2Multiplier();
+      const total = baseGen * u2Mult;
+      return Number.isFinite(total) && total > 0 ? total : 0;
+    };
+
+    const applyStardustGainSoftcap = (gainPerSecond) => {
+      return gainPerSecond;
+    };
+
+    function buyUpgrade(index, shouldRender = true) {
+      if (index === 8) {
+        if (!upgrade9Unlocked()) return false;
+        const cost = upgradeCost(8);
+        if (game.starEnergy < cost) return false;
+        game.starEnergy -= cost;
+        game.upgrades[8] = (game.upgrades[8] || 0) + 1;
+        if (shouldRender) render();
+        return true;
+      }
+      if (index === 9) {
+        if (!upgrade10Unlocked()) return false;
+        const cost = upgradeCost(9);
+        if (game.radiation < cost) return false;
+        game.radiation -= cost;
+        game.upgrades[9] = (game.upgrades[9] || 0) + 1;
+        if (shouldRender) render();
+        return true;
+      }
+      if (index === 10) {
+        if (!upgrade11Unlocked()) return false;
+        const cost = upgradeCost(10);
+        if (game.radiation < cost) return false;
+        game.radiation -= cost;
+        game.upgrades[10] = (game.upgrades[10] || 0) + 1;
+        if (shouldRender) render();
+        return true;
+      }
+      if (index >= 6) return false;
+      if (game.challenge2Active) {
+        if (index === 0 && game.upgrades[0] >= 10) return false;
+        if (index === 2) return false;
+        if (index === 4) return false;
+        if (index === 5) return false;
+      } else if (isInChallenge() && index === 2) return false;
+      const cardLocked = (index === 4 && !upgrade5Unlocked()) || (index === 5 && !upgrade6Unlocked());
+      if (cardLocked) return false;
+      if (index === 0 && upgrade1Cap() !== null && game.upgrades[0] >= upgrade1Cap()) return false;
+      if (index === 4 && upgrade5Cap() !== null && game.upgrades[4] >= upgrade5Cap()) return false;
+      const cost = upgradeCost(index);
+      const tier4Free = game.tier >= 4 && (index === 1 || index === 2);
+      const tier5Free = game.tier >= 5 && index === 4;
+      const rank8Free = game.rank >= 8 && index === 1;
+      if (!rank8Free && game.stardust < cost) return false;
+      if (!tier4Free && !tier5Free && !rank8Free) game.stardust -= cost;
+      game.upgrades[index] += 1;
+      if (shouldRender) render();
+      checkChallenge1Completion();
+      checkChallenge2Completion();
+      return true;
+    }
+
+    function buySub4(shouldRender = true) {
+      if (!sub4Unlocked()) return false;
+      const req = sub4Requirement();
+      if (game.upgrades[3] < req) return false;
+      game.subUpgrades[5] += 1;
+      if (shouldRender) render();
+      return true;
+    }
+
+    function autoBuySubupgradesByRequirement() {
+      let loops = 0;
+      while (loops < 10 && buySub4(false)) loops += 1;
+    }
+
+function runAutoBuyers() {
+      // U1 free auto at Tier 1: auto-level without spending stardust
+      if (game.tier >= 1) {
+        let loops = 0;
+        while (loops < 5) {
+          const cost = upgradeCost(0);
+          if (cost > game.stardust) break;
+          game.upgrades[0] += 1;
+          loops += 1;
+        }
+      } else if (autoU1Unlocked()) {
+        // U1 auto: unlocks after U1 >= 1, uses stardust
+        let loops = 0;
+        while (loops < 5 && buyUpgrade(0, false)) loops += 1;
+      }
+
+      // U2-U4 auto: Tier 2 has U2+U3 free (no stardust), Tier 3+ has U2+U3+U4
+      if (game.tier >= 2) {
+        const u2MaxAuto = 200 + game.rank * 5 + game.tier * 20;
+        let loops = 0;
+        while (loops < 5 && game.upgrades[1] < u2MaxAuto) {
+          const cost = upgradeCost(1);
+          if (cost > game.stardust) break;
+          game.upgrades[1] += 1;
+          loops += 1;
+        } // U2 - free at tier 2+
+        const maxAutoU3 = 500 + game.rank * 5 + game.tier * 20;
+        loops = 0;
+        while (loops < 5 && game.upgrades[2] < maxAutoU3) {
+          const cost = upgradeCost(2);
+          if (cost > game.stardust) break;
+          game.upgrades[2] += 1;
+          loops += 1;
+        } // U3 - free at tier 2+
+        if (tier3Autobuy()) {
+          loops = 0;
+          while (loops < 3 && game.upgrades[3] < maxAuto && buyUpgrade(3, false)) loops += 1; // U4 (uses stardust)
+        }
+      }
+
+      // U5-U6 auto: from Tier 5, uses stardust
+      if (tier5Autobuy()) {
+        let loops = 0;
+        while (loops < 2 && buyUpgrade(4, false)) loops += 1; // U5
+        loops = 0;
+        while (loops < 2 && buyUpgrade(5, false)) loops += 1; // U6
+      }
+
+      
+
+      // U7-U8 auto: from higher tiers
+      if (game.tier >= 6) {
+        for (let i = 0; i < 2; i++) buyUpgrade(6, false);
+      }
+      if (game.tier >= 8) {
+        for (let i = 0; i < 2; i++) buyUpgrade(7, false);
+      }
+
+      if (game.tier >= 3) {
+        const maxAuto = 100 + game.rank * 3 + game.tier * 10;
+        let loops = 0;
+        while (loops < 3 && game.upgrades[3] < maxAuto && buyUpgrade(3, false)) loops += 1; // U4 (uses stardust)
+        loops = 0;
+        while (loops < 3 && game.upgrades[4] < maxAuto && buyUpgrade(4, false)) loops += 1; // U5 (uses stardust)
+      }
+
+      if (tier5Autobuy()) {
+        const u6MaxAuto = 50 + game.rank * 2 + game.tier * 5;
+        let loops = 0;
+        while (loops < 3 && game.upgrades[5] < u6MaxAuto && buyUpgrade(5, false)) loops += 1;
+      }
+
+      if (game.stars >= 1) {
+        let seGain = game.stars * seUpgrade1Multiplier() * seUpgrade2Multiplier() * starUpgrade6Multiplier() * upgrade11StarEnergyMultiplier();
+        if (game.tier >= 6) {
+          seGain *= (1 + game.stars * 0.5) * radiationUpgradeMultiplier2();
+        }
+        if (game.rank >= 26) {
+          seGain *= pacingBoost();
+        }
+        if (Number.isFinite(seGain) && seGain > 0) {
+          game.starEnergy += seGain;
+        }
+      }
+
+      if ((game.starEnergyUpgrades[0] || 0) >= 1) {
+        if (Number.isFinite(game.rank) && game.rank < 1000) {
+          rankUp(false);
+        }
+      }
+    }
+
+    function rankUp(shouldRender = true) {
+      if (!rankUnlocked()) return;
+      if (game.upgrades[3] < rankRequirementU4Level()) return;
+      game.rank += 1;
+      game.subUpgrades = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // Reset perks on rank
+      if (game.tier >= 8) {
+        if (shouldRender) render();
+        return;
+      }
+      game.stardust = 0;
+      const u7 = game.upgrades[6] || 0;
+      const u8 = game.upgrades[7] || 0;
+      game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[9] || 0, game.upgrades[10] || 0];
+      if (shouldRender) render();
+    }
+
+    function tierUp() {
+      if (!tierUnlocked()) return;
+      if (game.rank < tierRequirementRank()) return;
+      game.tier += 1;
+      game.rank = 0;
+      game.stardust = 0;
+      game.subUpgrades = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // Reset perks on tier
+      const u7 = game.upgrades[6] || 0;
+      const u8 = game.upgrades[7] || 0;
+      game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[9] || 0, game.upgrades[10] || 0];
+      render();
+    }
+
+    function tetrUp() {
+      if (!tetrUnlocked()) return;
+      if (game.tier < tetrRequirementTier()) return;
+      game.tetr += 1;
+      game.tier = 0;
+      game.rank = 0;
+      game.stardust = 0;
+      game.subUpgrades = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // Reset perks on tetr
+      const u7 = game.upgrades[6] || 0;
+      const u8 = game.upgrades[7] || 0;
+      const u9 = game.upgrades[8] || 0;
+      const u10 = game.upgrades[9] || 0;
+      const u11 = game.upgrades[10] || 0;
+      game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, u9, u10, u11];
+      showToast(`⚛ Tetr ${game.tetr} reached!`, 'gold');
+      render();
+    }
+
+    function startChallenge1() {
+      if (!challengesUnlocked()) return;
+      if (game.challengeActive) return;
+      game.challengeActive = true;
+      game.stardust = 0;
+      const u7 = game.upgrades[6] || 0;
+      const u8 = game.upgrades[7] || 0;
+game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[9] || 0, game.upgrades[10] || 0];
+      game.subUpgrades = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      render();
+    }
+
+    function startChallenge2() {
+      if (!challenge2Unlocked()) return;
+      if (game.challenge2Active) return;
+      if (game.challengeActive) return;
+      game.challenge2Active = true;
+      game.stardust = 0;
+      const u7 = game.upgrades[6] || 0;
+      const u8 = game.upgrades[7] || 0;
+      game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[9] || 0, game.upgrades[10] || 0];
+      game.subUpgrades = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      render();
+    }
+
+    function checkChallenge1Completion() {
+      if (!game.challengeActive) return;
+      if (game.upgrades[3] >= challenge1Goal()) {
+        game.challengeActive = false;
+        game.challenge1Completions = 1;
+        game.starsCoreUnlocked = true;
+        saveMessage = `Challenge 1 completed! Stars Cores unlocked.`;
+        render();
+      }
+    }
+
+    function checkChallenge2Completion() {
+      if (!game.challenge2Active) return;
+      if (game.upgrades[3] >= challenge2Goal()) {
+        game.challenge2Active = false;
+        if (game.challenge2Completions < 5) {
+          game.challenge2Completions += 1;
+        }
+        saveMessage = `Challenge 2 completed! (${game.challenge2Completions}/5) U2 exponent +${(game.challenge2Completions * 0.01).toFixed(2)}.`;
+        render();
+      }
+    }
+
+    function render() {
+      checkAchievements();
+      
+      if (game.rank >= 5 && !game.tierUnlocked) {
+        game.tierUnlocked = true;
+        showToast('🏆 Tier system unlocked!', 'gold');
+      }
+      if (game.rank >= 3 && !game.tickspeedUnlocked) {
+        game.tickspeedUnlocked = true;
+        showToast('⚡ Tickspeed unlocked! ×1.12/lvl', 'orange');
+      }
+      if (game.rank >= 8 && !game.coreInitGranted) {
+        game.coreInitGranted = true;
+        showToast('💎 Cores unlocked! Buy with stardust', 'blue');
+      }
+      if (game.rank >= 4) game.subUnlocked[0] = true;
+      if (game.tier >= 1) {
+        game.subUnlocked[1] = true;
+        game.subUnlocked[2] = true;
+        game.subUnlocked[8] = true;
+      }
+      if (game.rank >= 7 && !game.tier >= 1) game.subUnlocked[2] = true;
+      if (game.rank >= 10) game.subUnlocked[4] = true;
+      if (game.rank >= 14) game.subUnlocked[6] = true;
+      if (game.rank >= 11 && !game.challengesUnlocked) {
+        game.challengesUnlocked = true;
+        showToast('⚔️ Challenges unlocked!', 'orange');
+      }
+      if (game.tier >= 3 && !game.starsCoreUnlocked && game.challenge1Completions >= 1) {
+        game.starsCoreUnlocked = true;
+        showToast('⭐ Stars Core unlocked!', 'gold');
+      }
+
+      // Tab visibility based on game state
+      document.querySelector('[data-tab="cores"]').style.display = coreUnlocked() ? '' : 'none';
+      document.querySelector('[data-tab="starsCores"]').style.display = starsCoreUnlocked() ? '' : 'none';
+      document.querySelector('[data-tab="stars"]').style.display = starLayerUnlocked() ? '' : 'none';
+      document.querySelector('[data-tab="challenges"]').style.display = challengesUnlocked() ? '' : 'none';
+
+      const gpsRaw = generationPerSecond();
+      const gps = applyStardustGainSoftcap(gpsRaw);
+      const baseGen = currentBaseGeneration();
+      const raw = upgrade2BasePercentRaw();
+      const eff = dampenPercent(raw);
+      const weighted = powerU2Levels(game.upgrades[1]);
+      const weightedNoSoftcap = powerU2LevelsNoSoftcap(game.upgrades[1]);
+      const weightedSoftcapFactor = weightedNoSoftcap > 0 ? weighted / weightedNoSoftcap : 1;
+      const weightedSoftcapLoss = Math.max(0, 1 - weightedSoftcapFactor);
+      const u2CurrentMultiplier = currentUpgrade2Multiplier();
+      const stardustSoftcapFactor = gpsRaw > 0 ? gps / gpsRaw : 1;
+      const stardustSoftcapLoss = Math.max(0, 1 - stardustSoftcapFactor);
+
+      const stardustEl = document.getElementById('stardust');
+      stardustEl.textContent = format(game.stardust);
+      if (game.stardust > lastStardust * 1.01 || game.stardust < lastStardust * 0.99) {
+        lastStardust = game.stardust;
+      }
+      
+      const gpsEl = document.getElementById('gps');
+      gpsEl.textContent = format(gps, 3);
+      if (Math.abs(gps - lastGps) > lastGps * 0.01) {
+        animateValueChange('gps');
+        lastGps = gps;
+      }
+      
+      document.getElementById('rank').textContent = game.rank;
+      document.getElementById('tier').textContent = game.tier;
+      document.getElementById('stars').textContent = game.stars;
+      
+      // Quick Stats - Main Tab
+      document.getElementById('quickGPS').textContent = format(gps, 2);
+      document.getElementById('quickRawGPS').textContent = format(gpsRaw, 2);
+      document.getElementById('quickStardust').textContent = format(game.stardust);
+      document.getElementById('quickTickspeed').textContent = 'x' + format(tickspeedMultiplier(), 2);
+      document.getElementById('quickRank').textContent = game.rank;
+      document.getElementById('quickTier').textContent = game.tier;
+      document.getElementById('quickPacing').textContent = 'x' + format(pacingBoost(), 2);
+      document.getElementById('quickU2Power').textContent = format(powerU2Levels(game.upgrades[1]), 2);
+      document.getElementById('quickCostReduc').textContent = format((1 - costReducer()) * 100);
+      document.getElementById('quickCores').textContent = format(game.cores);
+      if (game.stars !== lastStars) {
+        const now = performance.now();
+        if (now - lastStarAnimAt > 1500) {
+          animateClassOnce('starCard', 'star-aura', 700);
+          animateValueChange('stars');
+          lastStarAnimAt = now;
+        }
+        lastStars = game.stars;
+      }
+
+      const starEnergyCard = document.getElementById('starEnergyCard');
+      starEnergyCard.style.display = game.stars >= 1 ? 'block' : 'none';
+      document.getElementById('starEnergy').textContent = format(game.starEnergy);
+
+      document.getElementById('u7Card').style.display = upgrade7Unlocked() ? 'block' : 'none';
+      document.getElementById('u8Card').style.display = upgrade8Unlocked() ? 'block' : 'none';
+      document.getElementById('u9Card').style.display = upgrade9Unlocked() ? 'block' : 'none';
+      document.getElementById('u10Card').style.display = upgrade10Unlocked() ? 'block' : 'none';
+      document.getElementById('u11Card').style.display = upgrade11Unlocked() ? 'block' : 'none';
+      if (upgrade7Unlocked()) {
+        document.getElementById('u7').textContent = `lvl ${game.upgrades[6]} · current x${format(starEnergyMultiplier())} · boosts stardust +40%/lvl · next ${format(upgradeStarEnergyCost(6))} SE${game.starEnergyUpgrades[5] >= 1 ? ' · SE Upgrade 6: x' + format(seUpgrade6Multiplier(), 2) : game.tetr >= 2 ? ' · SE Upgrade 6: +25% (Tetr 2+)' : ''}`;
+        document.getElementById('buy7').disabled = game.starEnergy < upgradeStarEnergyCost(6);
+      }
+      if (upgrade8Unlocked()) {
+        document.getElementById('u8').textContent = `lvl ${game.upgrades[7]} · current x${format(starEnergyU3Boost())} · boosts U3 effect on U2 +20%/lvl · next ${format(upgradeStarEnergyCost(7))} SE`;
+        document.getElementById('buy8').disabled = game.starEnergy < upgradeStarEnergyCost(7);
+      }
+      if (upgrade9Unlocked()) {
+        const u9Level = game.upgrades[8] || 0;
+        document.getElementById('u9').textContent = `lvl ${u9Level} · current pacing x${format(upgrade9PacingMultiplier(), 2)} · next ${format(upgradeCost(8))} SE`;
+        document.getElementById('buy9').disabled = game.starEnergy < upgradeCost(8);
+      }
+      if (upgrade10Unlocked()) {
+        const u10Level = game.upgrades[9] || 0;
+        const nextCost = upgradeCost(9);
+        document.getElementById('u10').textContent = `lvl ${u10Level} · current stardust x${format(upgrade10StardustMultiplier(), 2)} · rad factor x${format(upgrade10RadiationFactorPerLevel(), 3)}/lvl · next ${format(nextCost, 2)} Radiation`;
+        document.getElementById('buy10').disabled = game.radiation < nextCost;
+      }
+      if (upgrade11Unlocked()) {
+        const u11Level = game.upgrades[10] || 0;
+        const nextCost = upgradeCost(10);
+        document.getElementById('u11').textContent = `lvl ${u11Level} · current SE x${format(upgrade11StarEnergyMultiplier(), 2)} · rad factor x${format(upgrade11RadiationFactorPerLevel(), 3)}/lvl · next ${format(nextCost, 2)} Radiation`;
+        document.getElementById('buy11').disabled = game.radiation < nextCost;
+      }
+
+      const rankButton = document.getElementById('rankUp');
+      const nextRank = game.rank + 1;
+      const nextReq = (() => {
+        let base;
+        if (nextRank <= 4) {
+          base = 17 + nextRank * 3;
+        } else if (nextRank <= 7) {
+          base = 38 + (nextRank - 5) * 4;
+        } else if (nextRank === 8) {
+          base = 68;
+        } else if (nextRank === 9) {
+          base = 160;
+        } else {
+          base = 160 + (nextRank - 10) * 20;
+        }
+        const reduction = starsCoreRankReduction();
+        return Math.max(20, base - reduction);
+      })();
+      if (!rankUnlocked()) {
+        document.getElementById('rankReq').textContent = `Requirement: U4 level ${nextReq}.`;
+        rankButton.disabled = true;
+      } else {
+        const reduction = starsCoreRankReduction();
+        let displayBase;
+        if (nextRank <= 4) {
+          displayBase = 17 + nextRank * 3;
+        } else if (nextRank <= 7) {
+          displayBase = 38 + (nextRank - 5) * 4;
+        } else if (nextRank === 8) {
+          displayBase = 68;
+        } else if (nextRank === 9) {
+          displayBase = 160;
+        } else {
+          displayBase = 160 + (nextRank - 10) * 20;
+        }
+        document.getElementById('rankReq').textContent = reduction > 0
+          ? `Requirement: U4 level ${nextReq}. (Base ${displayBase} -${reduction} Stars Core)`
+          : `Requirement: U4 level ${nextReq}.`;
+        rankButton.disabled = game.upgrades[3] < nextReq;
+      }
+      
+      const u4GoalEl = document.getElementById('u4GoalText');
+      if (u4GoalEl) u4GoalEl.textContent = rankRequirementU4Level();
+
+      const tierButton = document.getElementById('tierUp');
+      document.getElementById('tierCard').hidden = !tierUnlocked();
+      if (!tierUnlocked()) {
+        document.getElementById('tierReq').textContent = 'Locked: unlocks at Rank 5 (permanent).';
+        tierButton.disabled = true;
+      } else {
+        document.getElementById('tierReq').textContent = `Requirement: Rank ${tierRequirementRank()} (+4 each tier). Tier resets rank, stardust, and upgrades.`;
+        tierButton.disabled = game.rank < tierRequirementRank();
+      }
+
+      const tetrCard = document.getElementById('tetrCard');
+      const tetrButton = document.getElementById('tetrUp');
+      if (tetrCard) tetrCard.hidden = !tetrUnlocked();
+      if (tetrUnlocked()) {
+        document.getElementById('tetr').textContent = format(game.tetr, 0);
+        document.getElementById('tetrReq').textContent = `Requirement: Tier ${tetrRequirementTier()} (+4 each Tetr). Tetr resets tier, rank, stardust, and upgrades.`;
+        tetrButton.disabled = game.tier < tetrRequirementTier();
+      }
+
+      document.getElementById('u5Card').hidden = !upgrade5Unlocked();
+      const inUpgradesTab = document.getElementById('tab-upgrades').classList.contains('active');
+      document.getElementById('u6Card').hidden = !upgrade6Unlocked() || !inUpgradesTab;
+      document.getElementById('sub1Card').hidden = !sub1Unlocked();
+      document.getElementById('sub2Card').hidden = !sub2Unlocked();
+      const sub2bCard = document.getElementById('sub2bCard');
+      if (sub2bCard) sub2bCard.style.display = sub2bUnlocked() ? 'block' : 'none';
+      document.getElementById('sub3Card').hidden = !sub3Unlocked();
+      document.getElementById('sub3bCard').hidden = !sub3bUnlocked();
+      document.getElementById('sub4Card').hidden = !sub4Unlocked();
+      document.getElementById('sub5aCard').hidden = !sub5aUnlocked();
+      const sub5bCard = document.getElementById('sub5bCard');
+      if (sub5bCard) sub5bCard.style.display = sub5bUnlocked() ? 'block' : 'none';
+      document.getElementById('sub6Card').hidden = !sub6Unlocked();
+      if (sub6Unlocked()) {
+        document.getElementById('sub6').textContent = `U6 lvl ${game.upgrades[5]} → x${Math.pow(2, Math.floor(game.upgrades[5] / 5))} stardust boost`;
+      }
+      document.getElementById('starCard').hidden = !starLayerUnlocked();
+      document.getElementById('coreCard').hidden = !coreUnlocked();
+      document.getElementById('challengeCard').hidden = !challengesUnlocked();
+      document.getElementById('challenge2Card').hidden = !challenge2Unlocked();
+      document.getElementById('starsCoreCard').hidden = !starsCoreUnlocked();
+
+      const tickspeedCard = document.getElementById('tickspeedCard');
+      if (tickspeedCard) {
+        tickspeedCard.style.display = tickspeedUnlocked() ? 'block' : 'none';
+        if (tickspeedUnlocked()) {
+          const s3bBonus = sub3bUnlocked() ? getS3bPerks() * 0.5 : 0;
+          document.getElementById('tickspeedInfo').textContent = `lvl ${game.tickspeedLevel} · current x${format(tickspeedMultiplier(), 2)}${s3bBonus > 0 ? ` (+${format(s3bBonus, 1)}% from S3b)` : ''} · next ${format(tickspeedCost())} stardust`;
+          const btn = document.getElementById('buyTickspeed');
+          btn.disabled = game.stardust < tickspeedCost();
+        }
+      }
+      
+      const tickspeedStatCard = document.getElementById('tickspeedStatCard');
+      if (tickspeedStatCard) {
+        tickspeedStatCard.style.display = tickspeedUnlocked() ? 'block' : 'none';
+        if (tickspeedUnlocked()) {
+          document.getElementById('tickspeedDisplay').textContent = 'x' + format(tickspeedMultiplier(), 2);
+          document.getElementById('tickspeedLvl').textContent = game.tickspeedLevel;
+          document.getElementById('tickspeedCost').textContent = format(tickspeedCost());
+        }
+      }
+      
+      const tickspeedExplainCard = document.getElementById('tickspeedExplainCard');
+      if (tickspeedExplainCard) {
+        tickspeedExplainCard.style.display = tickspeedUnlocked() ? 'block' : 'none';
+      }
+      
+      const tickspeedQuickInfo = document.getElementById('tickspeedQuickInfo');
+      if (tickspeedQuickInfo) {
+        tickspeedQuickInfo.style.display = tickspeedUnlocked() ? 'block' : 'none';
+        if (tickspeedUnlocked()) {
+          document.getElementById('tickspeedQuickCost').textContent = format(tickspeedCost());
+        }
+      }
+
+      if (challengesUnlocked()) {
+        const c1Completed = game.challenge1Completions >= 1;
+        const c1Status = game.challengeActive ? '<span style="color:#ff6b6b">ACTIVE</span>' : c1Completed ? '<span style="color:#4ade80">✓ DONE</span>' : '<span style="color:#888">○ Ready</span>';
+        document.getElementById('challenge1Info').innerHTML = 
+          `Status: ${c1Status}<br>` +
+          `Goal: U4 level ${challenge1Goal()} · Current: ${game.upgrades[3]}<br>` +
+          `Reward: <b>Stars Cores unlock</b>`;
+        
+        const startBtn = document.getElementById('startChallenge1');
+        startBtn.disabled = game.challengeActive || game.challenge2Active || c1Completed;
+        startBtn.textContent = game.challengeActive ? 'In Challenge' : c1Completed ? 'Completed' : 'Start';
+        
+        if (challenge2Unlocked()) {
+          const c2Maxed = game.challenge2Completions >= 5;
+          const c2Status = game.challenge2Active ? '<span style="color:#ff6b6b">ACTIVE</span>' : c2Maxed ? '<span style="color:#4ade80">✓ MAXED</span>' : '<span style="color:#888">○ Ready</span>';
+          document.getElementById('challenge2Info').innerHTML = 
+            `Status: ${c2Status}<br>` +
+            `Goal: U4 level ${challenge2Goal()} · Current: ${game.upgrades[3]}<br>` +
+            `Progress: ${game.challenge2Completions}/5 completions<br>` +
+            `Reward: <b>U2 exponent +${(game.challenge2Completions * 0.01).toFixed(2)}</b>`;
+          
+          const startBtn2 = document.getElementById('startChallenge2');
+          startBtn2.disabled = game.challengeActive || game.challenge2Active || c2Maxed;
+          startBtn2.textContent = game.challenge2Active ? 'In Challenge' : c2Maxed ? 'Maxed' : 'Start';
+        }
+        
+        const exitBtn = document.getElementById('exitChallenge');
+        exitBtn.hidden = !(game.challengeActive || game.challenge2Active);
+        exitBtn.disabled = !(game.challengeActive || game.challenge2Active);
+        
+        if (game.challengeActive || game.challenge2Active) {
+          document.getElementById('challengeCard').style.borderColor = '#ff4444';
+          document.getElementById('challenge2Card').style.borderColor = '#ff4444';
+        } else if (c1Completed) {
+          document.getElementById('challengeCard').style.borderColor = '#4ade80';
+          document.getElementById('challenge2Card').style.borderColor = '';
+        } else {
+          document.getElementById('challengeCard').style.borderColor = '';
+          document.getElementById('challenge2Card').style.borderColor = '';
+        }
+        
+        if (challenge2Unlocked() && game.challenge2Completions >= 5) {
+          document.getElementById('challenge2Card').style.borderColor = '#4ade80';
+        }
+      }
+
+      if (starsCoreUnlocked()) {
+        const currentXP = starsCoreXP();
+        const xpForNext = starsCoreTotalXPForNextLevel();
+        const currentLevel = starsCoreLevel();
+        const nextStarLevel = starsCoreLevelForNextStar();
+        let formulaNote = game.tier >= 7 ? '3^x' : (game.tier >= 4 ? '5^x' : '10^x');
+        
+        document.getElementById('starsCoreLevel').textContent = currentLevel;
+        document.getElementById('starsCoreInfo').innerHTML = 
+          `Progress: <b>${format(currentXP)}</b> / <b>${format(xpForNext)}</b> XP<br>` +
+          `Formula: <b>${formulaNote}</b> · Next cost: <b>${format(xpForNext)}</b> stardust`;
+        
+        document.getElementById('starsCoreBoostsInfo').innerHTML = 
+          `Stardust: <b>x${format(starsCoreStardustBoost(), 2)}</b><br>` +
+          `Pacing: <b>x${format(starsCorePacingBoost(), 2)}</b><br>` +
+          `Rank reduction: <b>-${starsCoreRankReduction()}</b><br>` +
+          (tier11Unlocked() ? `Tier 11 Radiation: <b>x${format(tier11StarsCoreRadiationMultiplier(), 3)}</b>` : `Tier 11 Radiation: <b style="color:#666">LOCKED</b>`);
+        
+        document.getElementById('starsCoreCoresInfo').innerHTML = 
+          `Free cores: <b>${format(freeCores())}</b><br>` +
+          `Used cores: <b>${format(usedCores())}</b><br>` +
+          `Core cap: <b>${coreAllocationCap()}</b>`;
+        
+        const progressPct = Math.min(100, starsCoreProgress() * 100);
+        document.getElementById('starsCoreProgressFill').style.width = progressPct + '%';
+        
+        const levelsNeeded = Math.max(0, nextStarLevel - currentLevel);
+        document.getElementById('starsCoreStarReq').innerHTML = starsCoreAtMaxForStar()
+          ? `<span style="color:#4ade80">★ READY TO GENERATE STAR ★</span>`
+          : `Next Star at level: <b>${nextStarLevel}</b> (${levelsNeeded} levels to go)`;
+
+        const augWrap = document.getElementById('starsCoreAugments');
+        if (augWrap) augWrap.style.display = starsCoreAugmentsUnlocked() ? 'block' : 'none';
+        if (starsCoreAugmentsUnlocked()) {
+          document.getElementById('starsCoreAugmentsInfo').innerHTML =
+            `Lab bonuses: Stardust <b>x${format(starsCoreAugmentStardustMultiplier(), 2)}</b> · Pacing <b>x${format(starsCoreAugmentPacingMultiplier(), 2)}</b> · Rank <b>-${format(starsCoreAugmentRankReduction(), 0)}</b> · XP <b>÷${format(starsCoreAugmentXPDivisor(), 2)}</b>`;
+          const labels = [
+            'Core Prism: +50% Stars Core Stardust/lvl',
+            'Core Tempo: +35% Stars Core Pacing/lvl',
+            'Core Collapse: +3 rank requirement reduction/lvl',
+            'Core Compression: -20% Stars Core XP requirement/lvl'
+          ];
+          for (let i = 0; i < 4; i++) {
+            const btn = document.getElementById('buySCAug' + i);
+            if (!btn) continue;
+            const cost = starsCoreAugmentCost(i);
+            const lvl = game.starsCoreAugments[i] || 0;
+            btn.disabled = game.stardust < cost;
+            btn.textContent = `${labels[i]} (lvl ${lvl}) - ${format(cost)} stardust`;
+          }
+        }
+      }
+
+      if (coreUnlocked()) {
+        document.getElementById('cores').textContent = format(game.cores, 0);
+        document.getElementById('coreCard').hidden = false;
+        
+        const cost = coreCost();
+        const buyBtn = document.getElementById('buyCore');
+        buyBtn.textContent = `Buy Core (${format(cost, 0)} stardust)`;
+        buyBtn.disabled = game.stardust < cost;
+        
+        let coreInfo = `Stardust boost: <b>x${format(coreStardustBoost(), 2)}</b>${game.cores >= 1 ? ` (1 + log11(stardust))` : ''}`;
+        if (game.cores >= 2) {
+          coreInfo += `<br>Tickspeed boost: <b>x${format(coreBoostMultiplier(1), 2)}</b> (log12(tickspeed) + 1)`;
+        }
+        document.getElementById('coreInfo').innerHTML = coreInfo;
+      }
+
+      if (starLayerUnlocked()) {
+        const nextStarLevel = starsCoreLevelForNextStar();
+        document.getElementById('starInfo').innerHTML = 
+          `Stars: <b>${game.stars}</b>/20<br>` +
+          `Next star at SC level: <b>${nextStarLevel}</b><br>` +
+          (game.stars >= 3 ? `<span style="color:#4ade80">★ No resets (just +1 star +1 SE)</span>` : `After 3 stars: No resets`) +
+          `<br>☢ ${radiationUnlocked() ? 'Radiation UNLOCKED' : 'Radiation at 5 stars'}` +
+          `<br>⚛ ${nuclearFusionUnlocked() ? 'Nuclear Fusion UNLOCKED' : 'Nuclear Fusion at 8 stars'}`;
+        document.getElementById('gainStar').disabled = game.stars >= 20 || !starsCoreAtMaxForStar();
+        
+        document.getElementById('starEnergyUpgradesCard').hidden = !starLayerUnlocked();
+        if (starLayerUnlocked()) {
+          const se0 = game.starEnergyUpgrades[0] >= 1;
+          const se1 = game.starEnergyUpgrades[1] >= 1;
+          const se2 = game.starEnergyUpgrades[2] >= 1;
+          const se3 = game.starEnergyUpgrades[3] >= 1;
+          const se4 = game.starEnergyUpgrades[4] >= 1;
+          const se5 = game.starEnergyUpgrades[5] >= 1;
+          const tetr2Unlocked = game.tetr >= 2;
+          document.getElementById('starEnergyUpgradesInfo').innerHTML = 
+            `SE1: ${se0 ? '✓' : '·'} 10x · SE2: ${se1 ? '✓' : '·'} +Rank · SE3: ${se2 ? '✓' : '·'} 3x` +
+            (tetr2Unlocked ? `<br>SE4: ${se3 ? '✓' : '·'} 100x · SE5: ${se4 ? '✓' : '·'} 2x Rad · SE6: ${se5 ? '✓' : '·'} +25%` : `<br>SE4-6: Unlocks at Tetr 2`);
+          document.getElementById('buySEUpgrade0').disabled = se0 || game.starEnergy < seUpgradeCosts[0];
+          document.getElementById('buySEUpgrade1').disabled = se1 || game.starEnergy < seUpgradeCosts[1];
+          document.getElementById('buySEUpgrade2').disabled = se2 || game.starEnergy < seUpgradeCosts[2];
+          document.getElementById('buySEUpgrade3').disabled = !tetr2Unlocked || se3 || game.starEnergy < seUpgradeCosts[3];
+          document.getElementById('buySEUpgrade4').disabled = !tetr2Unlocked || se4 || game.starEnergy < seUpgradeCosts[4];
+          document.getElementById('buySEUpgrade5').disabled = !tetr2Unlocked || se5 || game.starEnergy < seUpgradeCosts[5];
+          document.getElementById('buySEUpgrade0').textContent = se0 ? 'SE1 Owned' : `SE1 10x (${format(seUpgradeCosts[0])} SE)`;
+          document.getElementById('buySEUpgrade1').textContent = se1 ? 'SE2 Owned' : `SE2 +Rank (${format(seUpgradeCosts[1])} SE)`;
+          document.getElementById('buySEUpgrade2').textContent = se2 ? 'SE3 Owned' : `SE3 3x (${format(seUpgradeCosts[2])} SE)`;
+          document.getElementById('buySEUpgrade3').textContent = se3 ? 'SE4 Owned' : `SE4 100x (${format(seUpgradeCosts[3])} SE)`;
+          document.getElementById('buySEUpgrade4').textContent = se4 ? 'SE5 Owned' : `SE5 2x Rad (${format(seUpgradeCosts[4])} SE)`;
+          document.getElementById('buySEUpgrade5').textContent = se5 ? 'SE6 Owned' : `SE6 +25% (${format(seUpgradeCosts[5])} SE)`;
+
+          document.getElementById('starUpgradesCard').hidden = !starsUnlocked();
+          document.getElementById('starUpgradesInfo').innerHTML = `Star upgrades boost various aspects of your production. Costs 2x per level.<br>Tier 11 Radiation Infusion: <b>${tier11Unlocked() ? 'ACTIVE' : 'LOCKED'}</b>${tier11Unlocked() ? ` · all Star upgrades multiplied by x${format(tier11StarRadiationMultiplier(), 3)} from Radiation` : ''}`;
+          const starUpgradeDescs = [
+            'Dust +50%',
+            'Rank +30%',
+            'Tier +25%',
+            'Pacing +20%',
+            'Core +15%',
+            'SE +15%',
+            'Gen +10%',
+            'U2 +10%'
+          ];
+          for (let i = 0; i < 8; i++) {
+            const cost = starUpgradeCosts[i] * Math.pow(2, game.starUpgrades[i]);
+            const canAfford = game.stardust >= cost;
+            const unlocked = i < 4 || starUpgrade2Unlocked();
+            const btn = document.getElementById('buyStarUpgrade' + i);
+            if (btn) {
+              btn.disabled = !canAfford || !unlocked;
+              btn.hidden = !unlocked;
+              btn.textContent = `${starUpgradeNames[i]} ${starUpgradeDescs[i]} (${game.starUpgrades[i]}) ${format(cost)}`;
+            }
+          }
+        }
+      }
+
+      const radiationTabBtn = document.getElementById('radiationTabBtn');
+      if (radiationTabBtn) {
+        radiationTabBtn.style.display = radiationUnlocked() ? 'inline-block' : 'none';
+      }
+      const radiationCard = document.getElementById('radiationCard');
+      if (radiationCard) {
+        radiationCard.hidden = !radiationUnlocked();
+        radiationCard.classList.toggle('radiation-live', radiationUnlocked());
+      }
+      if (radiationUnlocked()) {
+        document.getElementById('radiation').textContent = format(game.radiation, 2);
+        const now = performance.now();
+        if (Math.abs(game.radiation - lastRadiation) > Math.max(0.2, lastRadiation * 0.08) && (now - lastRadiationAnimAt > 1200)) {
+          animateClassOnce('radiationCard', 'radiation-aura', 700);
+          lastRadiation = game.radiation;
+          lastRadiationAnimAt = now;
+        }
+        const rps = radiationGainPerSecond();
+        document.getElementById('radiationInfo').innerHTML =
+          `Gain: <b>${format(rps, 3)}/s</b><br>` +
+          `Formula: <b>[(stars-4)×0.12 + log10(stardust)/45] × fusion</b><br>` +
+          `Boosts: Gamma <b>x${format(radiationUpgradeMultiplier1(), 2)}</b> · Core <b>x${format(radiationCoreMultiplier(), 2)}</b> · T11 <b>x${format(tier11CoreRadiationMultiplier(), 2)}</b>`;
+        
+        document.getElementById('radiationUpgradesInfo').innerHTML = 
+          `Gamma: +25%/lvl · Neutrino: +15%/lvl · Chrono: +12%/lvl · Irradiated: +10%/lvl · Atomic: +8%/lvl<br>` +
+          `Costs 1.9x per level`;
+        const radNames = ['Gamma +25% Dust', 'Neutrino +15% SE', 'Chrono +12% Pace', 'Irradiated +10% Fusion', 'Atomic +8% Dust'];
+        for (let i = 0; i < 5; i++) {
+          const btn = document.getElementById('buyRad' + i);
+          if (!btn) continue;
+          const cost = Math.floor((radiationUpgradeCosts[i] || 0) * safePow(1.9, game.radiationUpgrades[i] || 0));
+          btn.disabled = game.radiation < cost;
+          btn.textContent = `${radNames[i]} (${game.radiationUpgrades[i] || 0}) - ${format(cost)}`;
+        }
+      } else {
+        document.getElementById('radiationInfo').innerHTML = `Unlock at <b>5 Stars</b> (${Math.max(0, 5 - game.stars)} more)`;
+      }
+
+      const fusionSection = document.getElementById('fusionUpgradesCard');
+      if (fusionSection) fusionSection.hidden = !nuclearFusionUnlocked();
+      const fNames = [
+        'Fusion Matrix: +35% stardust gen/lvl',
+        'Synchrotron: +30% radiation gain/lvl',
+        'Plasma Rhythm: +20% pacing/lvl'
+      ];
+      if (nuclearFusionUnlocked()) {
+        document.getElementById('fusion').textContent = format(game.fusion, 2);
+        const nowFusion = performance.now();
+        if (Math.abs(game.fusion - lastFusion) > Math.max(0.08, lastFusion * 0.08) && (nowFusion - lastFusionAnimAt > 1400)) {
+          animateValueChange('fusion');
+          animateClassOnce('radiationCard', 'radiation-aura', 700);
+          lastFusion = game.fusion;
+          lastFusionAnimAt = nowFusion;
+        }
+        const fps = fusionGainPerSecond();
+        document.getElementById('fusionInfo').innerHTML =
+          `Gain: <b>${format(fps, 3)}/s</b><br>` +
+          `Matrix <b>x${format(fusionMultiplier1(), 2)}</b> · Synchrotron <b>x${format(fusionMultiplier2(), 2)}</b> · Plasma <b>x${format(fusionMultiplier3(), 2)}</b>`;
+        for (let i = 0; i < 3; i++) {
+          const btn = document.getElementById('buyFusion' + i);
+          if (!btn) continue;
+          const cost = Math.floor((fusionUpgradeCosts[i] || 0) * safePow(2.2, game.fusionUpgrades[i] || 0));
+          btn.disabled = game.fusion < cost;
+          btn.textContent = `${fNames[i]} (${game.fusionUpgrades[i] || 0}) ${format(cost)}`;
+        }
+      } else if (radiationUnlocked()) {
+        document.getElementById('fusion').textContent = 'LOCKED';
+        document.getElementById('fusionInfo').innerHTML = `Unlock at <b>8 Stars</b> (${Math.max(0, 8 - game.stars)} more)`;
+        for (let i = 0; i < 3; i++) {
+          const btn = document.getElementById('buyFusion' + i);
+          if (!btn) continue;
+          btn.disabled = true;
+          btn.textContent = `${fNames[i]} (locked)`;
+        }
+      }
+
+      const u1RawBase = 1 + game.upgrades[0];
+      const u1SubBoost = sub1U1BaseBonus() * sub1CoreMultiplier();
+      const u1Sub3Boost = sub3U1Multiplier();
+      const rankBoost = rankGenerationMultiplier();
+      const tierBoost = tierU3ToU1Boost();
+      const tierU4Boost = tierU3ToU4Boost();
+      const paceBoost = pacingBoost();
+      const stabilizerBase = stabilizerMultiplier();
+
+      const currentStatsEl = document.getElementById('currentStats');
+      if (currentStatsEl) {
+      currentStatsEl.innerHTML = [
+        '<b>Bases</b>',
+        `U1 raw base: <b>${format(u1RawBase, 2)}/s</b>`,
+        `U2 raw base effect: <b>${format(raw, 2)}%</b>`,
+        '<b>Boosts</b>',
+        `Subupgrade 1 (U1): <b>x${format(u1SubBoost, 3)}</b>`,
+        `Subupgrade 3 (U1 post-Sub1): <b>x${format(u1Sub3Boost, 3)}</b>`,
+        `Rank generation: <b>x${format(rankBoost, 3)}</b>`,
+        `Rank per-rank boost: <b>x${format(rankPerRankBoost(), 2)}</b>`,
+        `Rank 3 bonus: <b>+5% gen + Pacing cap x10 + Tickspeed ×${format(tickspeedMultiplier(), 2)}</b>`,
+        `Tier synergy: <b>x${format(tierBoost, 3)}</b> to U1, <b>x${format(tierU4Boost, 3)}</b> to U4`,
+        `Tier 3 removes 2nd softcap: <b>${game.tier >= 3 ? 'YES' : 'NO'}</b>`,
+        `Subupgrade 2 (S2a): x${format(Math.pow(1.125, getS2aPerks()), 3)}`,
+        `Subupgrade 3 (S3a): x${format(Math.pow(1.05, getS3aPerks()), 3)} pacing`,
+        `Subupgrade 3b (S3b): +${format(getS3bPerks() * 0.5, 1)}% tickspeed`,
+        `Upgrade 5 cap: <b>${upgrade5Cap() ?? 'None (Rank 26+)'}</b> (Effect max 99%)`,
+        `Upgrade 6 Tempo: <b>x${format(upgrade6StardustMultiplier(), 3)}</b> (x3/lvl stardust)`,
+        `Core boosts: <b>U1 x${format(coreBoostMultiplier(0), 2)} · U2 x${format(coreBoostMultiplier(1), 2)} · U3 x${format(coreBoostMultiplier(2), 2)} · U4 x${format(coreBoostMultiplier(3), 2)} · U5 x${format(coreBoostMultiplier(4), 2)} · U6 x${format(coreBoostMultiplier(12), 2)} · U7 x${format(coreBoostMultiplier(13), 2)} · U8 x${format(coreBoostMultiplier(14), 2)} · Radiation x${format(radiationCoreMultiplier(), 2)}<br>Sub1 x${format(coreSubBoostMultiplier(5), 2)} · Sub2 x${format(coreSubBoostMultiplier(6), 2)} · Sub3 x${format(coreSubBoostMultiplier(7), 2)} · Sub4 x${format(coreSubBoostMultiplier(11), 2)}</b>`,
+        `Tier 11 Core-Radiation synergy: <b>${tier11Unlocked() ? 'x' + format(tier11CoreRadiationMultiplier(), 2) + ' to radiation gain' : 'LOCKED'}</b>`,
+        `Stars Core Stardust: <b>x${format(starsCoreStardustBoost(), 3)}</b>`,
+        `SE Upgrade 1: <b>x${format(seUpgrade0Multiplier(), 2)}</b> (10x stardust${game.starEnergyUpgrades[0] >= 1 ? ' · OWNED' : ''})`,
+        `SE Upgrade 3: <b>x${format(seUpgrade2Multiplier(), 2)}</b> (3x stardust${game.starEnergyUpgrades[2] >= 1 ? ' · OWNED' : ''})`,
+        `SE Upgrade 4: <b>x${format(seUpgrade4Multiplier(), 2)}</b>${game.tetr >= 2 ? game.starEnergyUpgrades[3] >= 1 ? ' · OWNED' : '' : ' · LOCKED (Tetr 2+)'}`,
+        `Pacing boost: <b>x${format(paceBoost, 3)}</b>`,
+        `U4 stabilizer base: <b>x${format(stabilizerBase, 3)}</b>`,
+        `U2 total multiplier: <b>x${format(u2CurrentMultiplier, 3)}</b>`,
+        `Raw GPS: <b>${format(gpsRaw, 3)}/s</b>`,
+        `Softcapped GPS: <b>${format(gps, 3)}/s</b>`,
+        `Stardust softcap effect: <b>x${format(stardustSoftcapFactor, 4)}</b> (${format(stardustSoftcapLoss * 100, 2)}% reduced)`,
+        `Weighted softcap effect: <b>x${format(weightedSoftcapFactor, 4)}</b> (${format(weightedSoftcapLoss * 100, 2)}% reduced)`,
+        `        Stardust gain softcaps: <b>1M</b> then <b>1B</b> (gentle)`
+      ].join('<br>');
+      }
+
+      const saveLabel = document.getElementById('saveStatus');
+      const baseSaveText = lastSavedAt
+        ? `Last save: ${new Date(lastSavedAt).toLocaleTimeString()}`
+        : 'No save yet.';
+      saveLabel.textContent = saveMessage ? `${baseSaveText} · ${saveMessage}` : baseSaveText;
+
+      if (saveMessage && !saveMessage.startsWith('Offline:')) {
+        setTimeout(() => {
+          saveMessage = '';
+          render();
+        }, 3000);
+      }
+
+      const rankMilestones = [
+        `${game.rank >= 1 ? '✓' : '·'} Rank 1: Unlock Upgrade 5 + generation x2`,
+        `${game.rank >= 2 ? '✓' : '·'} Rank 2: U1-U4 cost 30% + Pacing cap x100`,
+        `${game.rank >= 3 ? '✓' : '·'} Rank 3: 5% gen + Tickspeed ×1.12/lvl`,
+        `${game.rank >= 4 ? '✓' : '·'} Rank 4: Tickspeed boosts pacing + Pacing +12%/rank + S1a unlocked`,
+        `${game.rank >= 5 ? '✓' : '·'} Rank 5: Unlock Tier system`,
+        `${game.rank >= 6 ? '✓' : '·'} Rank 6: Rank pacing becomes multiplicative`,
+        `${game.rank >= 7 ? '✓' : '·'} Rank 7: Tickspeed 1.3x/lvl + Cost 2.6x + Rank scaling +6`,
+        `${game.rank >= 8 ? '✓' : '·'} Rank 8: Pacing cap x10000 + unlock Cores`,
+        `${game.rank >= 9 ? '✓' : '·'} Rank 9: U4 requirement 160`,
+        `${game.rank >= 10 ? '✓' : '·'} Rank 10: Unlock S5a (÷1.125/perk) + S5b (÷1.5 tickspeed cost)`,
+        `${game.rank >= 11 ? '✓' : '·'} Rank 11: Unlock Challenges`,
+        `${game.rank >= 14 ? '✓' : '·'} Rank 14: Unlock Subupgrade 6 (Stardust x2/lvl)`,
+        `${game.rank >= 15 ? '✓' : '·'} Rank 15: Stars Core boosts gen +10%/lvl`,
+        `${game.rank >= 16 ? '✓' : '·'} Rank 16: Core Enhancements (Pacing + Stardust x10)`,
+        `${game.rank >= 26 ? '✓' : '·'} Rank 26: Remove U5 level cap + Star Energy boosted by pacing`,
+      ];
+      const tierMilestones = [
+        `${game.tier >= 1 ? '✓' : '·'} Tier 1: Subupgrades 2 & 3 unlocked`,
+        `${game.tier >= 2 ? '✓' : '·'} Tier 2: Unlock U6 + S2b + U5 cap 100 + U3 autobuy`,
+        `${game.tier >= 3 ? '✓' : '·'} Tier 3: U1-U4 autobuy + U3 boosts U4 + remove 2nd softcap + Star Layer`,
+        `${game.tier >= 4 ? '✓' : '·'} Tier 4: Stars Core 5^x formula + U2/U3 free + U2 no softcap`,
+        `${game.tier >= 5 ? '✓' : '·'} Tier 5: U6 autobuy + U5 free`,
+        `${game.tier >= 6 ? '✓' : '·'} Tier 6: Stars boost SE gain + Unlock Star Upgrades 5-8`,
+        `${game.tier >= 7 ? '✓' : '·'} Tier 7: Stars Core 3^x formula + Core slots for S4/U6/U7 + Unlock Upgrade 9`,
+        `${game.tier >= 8 ? '✓' : '·'} Tier 8: Star Upgrades 5-8 + Rank-up no longer resets + Nuclear Fusion scaling`,
+        `${game.tier >= 10 ? '✓' : '·'} Tier 10: Remove U1 6000 cap + Unlock Upgrade 10 (Radiation)`,
+        `${game.tier >= 11 ? '✓' : '·'} Tier 11: Radiation Infusion unlocks in Stars, Cores, and Stars Cores`,
+      ];
+      const tetrMilestones = [
+        `${game.tetr >= 1 ? '✓' : '·'} Tetr 1: Stars Core Lab unlocked (4 new augments)`,
+        `${game.tetr >= 2 ? '✓' : '·'} Tetr 2: Pacing boosts Radiation + Star Energy Upgrades 4-6 unlocked`,
+      ];
+      const challengeMilestones = [
+        `${game.challenge1Completions >= 1 ? '✓' : '·'} Challenge 1: Reach U4 lvl ${challenge1Goal()} (+1 Core)`,
+        `${game.tier >= 3 && game.challenge2Completions >= 5 ? '✓' : game.tier >= 3 ? '·' : '·'} Challenge 2: Reach U4 lvl ${challenge2Goal()} (+U2 exponent +${(game.challenge2Completions * 0.01).toFixed(2)},5)`
+      ];
+
+      document.getElementById('milestonesRank').innerHTML = rankMilestones.join('<br>');
+      document.getElementById('milestonesTier').innerHTML = tierMilestones.join('<br>');
+      document.getElementById('milestonesTetr').innerHTML = tetrMilestones.join('<br>');
+      document.getElementById('milestonesChallenge').innerHTML = challengeMilestones.join('<br>');
+
+      document.getElementById('rankProgressDisplay').textContent = `Rank ${game.rank || 0}`;
+      document.getElementById('rankProgressText').textContent = `Current: Rank ${game.rank || 0}`;
+      const maxRank = 30;
+      const rankProgress = Math.min(100, (game.rank || 0) / maxRank * 100);
+      document.getElementById('rankProgressBar').style.width = `${rankProgress}%`;
+
+      document.getElementById('tierProgressDisplay').textContent = `Tier ${game.tier || 0}`;
+      document.getElementById('tierProgressText').textContent = `Current: Tier ${game.tier || 0}`;
+      const maxTier = 15;
+      const tierProgress = Math.min(100, (game.tier || 0) / maxTier * 100);
+      document.getElementById('tierProgressBar').style.width = `${tierProgress}%`;
+
+      document.getElementById('tetrProgressDisplay').textContent = `Tetr ${game.tetr || 0}`;
+      document.getElementById('tetrProgressText').textContent = `Current: Tetr ${game.tetr || 0}`;
+      const maxTetr = 5;
+      const tetrProgress = Math.min(100, (game.tetr || 0) / maxTetr * 100);
+      document.getElementById('tetrProgressBar').style.width = `${tetrProgress}%`;
+
+      document.getElementById('challengeProgressDisplay').textContent = `${game.challenge1Completions || 0} / 1`;
+      document.getElementById('challengeProgressText').textContent = `Challenge 1: ${game.challenge1Completions || 0} completion(s)`;
+      const challengeProgress = Math.min(100, (game.challenge1Completions || 0) / 1 * 100);
+      document.getElementById('challengeProgressBar').style.width = `${challengeProgress}%`;
+
+      const achievementsCountEl = document.getElementById('achievementsCount');
+      if (achievementsCountEl) {
+        const unlockedCount = game.achievements.length;
+        const totalCount = ACHIEVEMENTS.length;
+        achievementsCountEl.textContent = `(${unlockedCount}/${totalCount})`;
+      }
+
+      const playTimeEl = document.getElementById('playTime');
+      if (playTimeEl) {
+        const playTimeHours = Math.floor(game.totalPlayTime / 3600);
+        const playTimeMins = Math.floor((game.totalPlayTime % 3600) / 60);
+        playTimeEl.textContent = `${playTimeHours}h ${playTimeMins}m`;
+      }
+
+      const achievementsList = document.getElementById('achievementsList');
+      if (achievementsList) {
+        const achs = game.achievements || [];
+        achievementsList.innerHTML = ACHIEVEMENTS.map(ach => {
+          const isUnlocked = achs.includes(ach.id);
+          return `<div style="opacity:${isUnlocked ? '1' : '0.4'};">${isUnlocked ? '✅' : '🔒'} ${ach.name}: ${ach.desc}</div>`;
+        }).join('') || '<span style="color:#666">No achievements yet - play to unlock!</span>';
+      }
+
+      const tips = [];
+      
+      // Early game priorities based on rank
+      if (game.rank < 3) {
+        tips.push('<b>Stage 1: Build Base</b> Buy U1-U4 to establish generation');
+        tips.push(`<b>Goal</b>: Reach U4 lvl ${rankRequirementU4Level()} for Rank 3`);
+        tips.push('<b>Tip</b>: Balance U1 (base) and U2 (multiplier)');
+      } else if (game.rank < 5) {
+        tips.push('<b>Stage 2: Progress</b> Continue building U1-U4');
+        tips.push(`<b>Goal</b>: Reach Rank 5 for Tier system`);
+        tips.push('<b>New</b>: Tickspeed unlocked! Buy for ×1.12/lvl');
+        tips.push('<b>Tip</b>: Start focusing U2 for scaling');
+      } else if (game.rank < 10) {
+        tips.push('<b>Stage 3: Tier</b> Unlock and progress Tier');
+        tips.push(`<b>Goal</b>: Reach Tier 10 for Radiation`);
+        tips.push(`<b>Current</b>: Tier ${game.tier}`);
+        tips.push('<b>New</b>: Core system at Rank 8, Subupgrades at Tier 1');
+      } else if (game.rank < 16) {
+        tips.push('<b>Stage 4: Core</b> Build and enhance cores');
+        tips.push('<b>Goal</b>: Reach Rank 16 for Core Enhancement');
+        tips.push(`<b>Cores</b>: ${game.cores} available · Use for pacing!`);
+        tips.push('<b>Tip</b>: Stack Core Enhancements then Respec');
+      } else if (game.rank < 30) {
+        tips.push('<b>Stage 5: Radiation</b> Unlock Gamma upgrades');
+        tips.push('<b>Goal</b>: Reach Tier 10 for Radiation');
+        tips.push('<b>New</b>: Upgrade 10 (stardust boost)');
+        if (game.tier < 3) tips.push('<b>Challenge</b>: Unlock at Tier 3');
+      } else if (game.rank < 61) {
+        tips.push('<b>Stage 6: Stars Core</b> Build star collection');
+        tips.push('<b>Goal</b>: Reach Rank 61 for Tier 15');
+        tips.push(`<b>Stars</b>: ${game.stars}/20 · ${100 - game.starsCoreLevel} XP to next`);
+        tips.push('<b>New</b>: Star Energy upgrades U7-U9');
+      } else if (game.tier < 16) {
+        tips.push('<b>Stage 7: Tetr Prep</b> Push to Tier 15');
+        tips.push('<b>Goal</b>: Reach Tier 16 to unlock Tetr');
+        tips.push(`<b>Current</b>: Tier ${game.tier}`);
+        tips.push('<b>Best</b>: Stack Radiation & Star Energy');
+      } else if (game.tetr < 2) {
+        tips.push('<b>Stage 8: Tetr</b> First Tetr reset');
+        tips.push('<b>Goal</b>: Reach Tetr 2');
+        tips.push('<b>New</b>: SE Upgrades 4-6 unlocked');
+      } else {
+        tips.push('<b>Late Game</b> Max all systems');
+        tips.push(`<b>Tetr</b>: ${game.tetr} · Stars: ${game.stars}`);
+      }
+      
+      // Add relevant tips based on unlocked features
+      if (game.starsCoreLevel < 100) {
+        tips.push(`<b>Stars Core</b>: ${100 - game.starsCoreLevel} levels to next star`);
+      }
+      
+      if (game.stars >= 7 && game.stars < 20) {
+        tips.push(`<b>Nuclear Fusion</b>: ${8 - game.stars} more stars to unlock`);
+      }
+      
+      if (coreUnlocked()) {
+        tips.push(`<b>Cores</b>: ${game.cores} owned · Stardust boost: x${format(coreStardustBoost(), 2)}`);
+      }
+      
+      if (game.radiation > 0) {
+        tips.push(`<b>Radiation</b>: ${format(game.radiation)} · Upgrade Gamma for boost`);
+      }
+      
+      if (game.upgrades[1] >= 50) {
+        tips.push(`<b>Softcap</b>: U2 power at ${format(weightedSoftcapLoss * 100, 1)}%`);
+      }
+      
+      if (game.tier >= 3 && game.challenge1Completions < 5) {
+        tips.push(`<b>Challenge 2</b>: ${5 - game.challenge2Completions} more runs for max U2 exponent`);
+      }
+
+      const tipsEl = document.getElementById('gameplayTips');
+      if (tipsEl) tipsEl.innerHTML = tips.join('<br>');
+
+      const powerNow = powerU2Levels(game.upgrades[1]);
+      const nextPower = powerU2Levels(game.upgrades[1] + 1);
+      document.getElementById('weightedHelp').innerHTML = [
+        'Power Formula: levels^0.7 with softcap after level 50.',
+        `Current: <b>${game.upgrades[1]} levels => ${format(powerNow, 2)} power</b>`,
+        `No-softcap power: <b>${format(weightedNoSoftcap, 2)}</b>`,
+        `Softcap effect: <b>x${format(weightedSoftcapFactor, 4)}</b> (${format(weightedSoftcapLoss * 100, 2)}% reduced)`,
+        `Next level adds: <b>+${format(nextPower - powerNow, 3)} power</b>`,
+        'Softcap starts at level <b>50</b> (4% per level over).',
+      ].join('<br>');
+
+      const { progressPart: pacingFromProgress, rankPart: pacingFromRank, tierPart: pacingFromTier, corePacingPart, capMultiplier, starsCorePacingPart, tickspeedPacingPart, rank4PacingPart } = pacingBreakdown();
+      const pacingNow = pacingBoost();
+      const nextPacingMilestone = safePow(1.5, game.corePacingClaimedExp + 1);
+      
+      const pacingCurrentEl = document.getElementById('pacingCurrentVal');
+      if (pacingCurrentEl) pacingCurrentEl.textContent = format(pacingNow, 2);
+      const pacingCapEl = document.getElementById('pacingCapVal');
+      if (pacingCapEl) pacingCapEl.textContent = capMultiplier === null ? 'none' : format(capMultiplier, 2);
+      
+      const hardCap = capMultiplier === null ? 'none' : format(capMultiplier, 0);
+      document.getElementById('pacingHelp').innerHTML = [
+        `Current pacing boost: <b>x${format(pacingNow, 2)}</b>`,
+        `From upgrades: <b>+${format(pacingFromProgress * 100, 2)}%</b>`,
+        `From rank: <b>+${format(pacingFromRank * 100, 2)}%</b>`,
+        `From tier: <b>+${format(pacingFromTier * 100, 2)}%</b>`,
+        `From challenge: <b>${isInChallenge() ? `x${challenge1PacingCap()} (capped)` : 'x1'}</b>`,
+        `From Upgrade 6: <b>+${format((upgrade6PacingBoost() - 1) * 100, 2)}%</b>${upgrade6Unlocked() ? '' : ' (unlocks at Tier 2)'}`,
+        `From Stars Core: <b>+${format(starsCorePacingPart * 100, 2)}%</b>${starsCoreUnlocked() ? '' : ' (locked)'}`,
+        `From Tickspeed: <b>+${format(tickspeedPacingPart * 100, 2)}%</b>${game.rank >= 4 ? '' : ' (unlocks at Rank 4)'}`,
+        `From Rank 4: <b>+${format(rank4PacingPart * 100, 2)}%</b>${game.rank >= 4 ? '' : ' (unlocks at Rank 4)'}`,
+        `Hard cap: <b>${hardCap}</b>`,
+        `Rank pacing mode: <b>${game.rank >= 6 ? 'multiplicative (Rank 6)' : 'additive'}</b>`,
+        `Tier pacing mode: <b>${game.tier >= 2 ? 'multiplicative (Tier 2)' : 'additive'}</b>`
+      ].join('<br>');
+
+      if (document.getElementById('weightedHelp2')) {
+        document.getElementById('weightedHelp2').innerHTML = document.getElementById('weightedHelp').innerHTML;
+      }
+      if (document.getElementById('pacingHelp2')) {
+        document.getElementById('pacingHelp2').innerHTML = document.getElementById('pacingHelp').innerHTML;
+        const pacingCurrentEl2 = document.getElementById('pacingCurrentVal2');
+        if (pacingCurrentEl2) pacingCurrentEl2.textContent = format(pacingNow, 2);
+        const pacingCapEl2 = document.getElementById('pacingCapVal2');
+        if (pacingCapEl2) pacingCapEl2.textContent = capMultiplier === null ? 'none' : format(capMultiplier, 2);
+      }
+
+      const u3ScaleStart = postThresholdForUpgrade(2);
+      const challengeDisabled = isInChallenge() ? ' [DISABLED]' : '';
+      document.getElementById('desc2').textContent = `Upgrade 2 uses power formula (levels^0.7) with softcap after lvl 50. Current effective per-level: +${format(eff, 2)}%. Softcap now: x${format(weightedSoftcapFactor, 3)}.`;
+      document.getElementById('desc3').textContent = `Upgrade 3 adds +12% to Upgrade 2 base per level (extra cost scaling starts at lvl ${u3ScaleStart}).${challengeDisabled}`;
+      document.getElementById('desc4').textContent = `Upgrade 4 additive boost is dynamic: +35%/lvl until 9, then +5%/lvl after softcap.`;
+
+      const u1CurrentBase = u1RawBase * sub1U1BaseBonus() * sub1CoreMultiplier();
+      const labels = [
+        game.tier >= 1
+          ? `lvl ${game.upgrades[0]}${upgrade1Cap() !== null ? ' / ' + upgrade1Cap() : ''} · raw base ${format(u1RawBase, 2)}/s · current ${format(u1CurrentBase, 2)}/s · Tier 1 autobuy active${upgrade1Cap() !== null && game.upgrades[0] >= upgrade1Cap() ? ' · Level MAXED' : ` · next ${format(upgradeCost(0))} stardust`}${game.upgrades[0] >= 25 ? ' · post-25 scaling' : ''}`
+          : autoU1Unlocked()
+            ? `lvl ${game.upgrades[0]}${upgrade1Cap() !== null ? ' / ' + upgrade1Cap() : ''} · raw base ${format(u1RawBase, 2)}/s · current ${format(u1CurrentBase, 2)}/s · Tier 1 free autobuy active${upgrade1Cap() !== null && game.upgrades[0] >= upgrade1Cap() ? ' · Level MAXED' : ''}${game.upgrades[0] >= 25 ? ' · post-25 scaling' : ''}`
+            : `lvl ${game.upgrades[0]}${upgrade1Cap() !== null ? ' / ' + upgrade1Cap() : ''} · raw base ${format(u1RawBase, 2)}/s · current ${format(u1CurrentBase, 2)}/s${upgrade1Cap() !== null && game.upgrades[0] >= upgrade1Cap() ? ' · Level MAXED' : ` · next ${format(upgradeCost(0))} stardust`}${game.upgrades[0] >= 25 ? ' · post-25 scaling' : ''}`,
+        `lvl ${game.upgrades[1]} · raw ${format(raw)}% · current ${format(eff)}% · boost x${format(u2CurrentMultiplier, 3)} · next ${format(upgradeCost(1))} stardust${game.upgrades[1] >= 50 ? ' · power softcap active' : ''}`,
+        `lvl ${game.upgrades[2]} · raw +${format(game.upgrades[2] * 12)}% to u2 · current x${format(1 + game.upgrades[2] * 0.12, 3)} · next ${isInChallenge() ? 'LOCKED' : format(upgradeCost(2))} stardust${game.upgrades[2] >= 8 ? ' · post-8 scaling' : ''}`,
+        `lvl ${game.upgrades[3]} · current +${format(stabilizerBasePercent(), 1)}% to u2 (softcap after 9: +5%/lvl) · current x${format(stabilizerMultiplier() * stabilizerRankBoost(), 3)} · next ${format(upgradeCost(3))} stardust${game.upgrades[3] >= 15 ? ' · post-15 scaling' : ''}`,
+        `lvl ${game.upgrades[4]}${upgrade5Cap() !== null ? ' / ' + upgrade5Cap() : ''} · current cost reduction ${format((1 - costReducer()) * 100)}%${upgrade5Cap() !== null && game.upgrades[4] >= upgrade5Cap() ? ' · Level MAXED' : upgrade5Cap() === null ? ' · No level cap' : ''} · next ${format(upgradeCost(4))} stardust · Effect caps at 99%`,
+        `lvl ${game.upgrades[5]} · current x${format(upgrade6StardustMultiplier(), 3)} stardust · next ${format(upgradeCost(5))} stardust`
+      ];
+
+      ['u1', 'u2', 'u3', 'u4', 'u5', 'u6'].forEach((id, i) => {
+        const labelEl = document.getElementById(id);
+        if (!labelEl) return;
+        labelEl.textContent = labels[i];
+      });
+
+      if (sub1Unlocked()) {
+        const u1 = getU1Level();
+        const s1a = getS1aPerks();
+        const s1b = getS1bPerks();
+        const s1TotalMax = u1;
+        const s1aMax = s1TotalMax - s1b;
+        document.getElementById('sub1').textContent = `Perks: ${s1a}/${s1aMax} · x${sub1U1BaseBonus().toFixed(2)}`;
+        document.getElementById('sub1b').textContent = `Perks: ${s1b}/${s1TotalMax - s1a} · x${sub1bStardustMultiplier().toFixed(2)}`;
+        document.getElementById('sub1aMinus').disabled = s1a <= 0;
+        document.getElementById('sub1aPlus').disabled = s1a >= s1aMax;
+        document.getElementById('sub1bMinus').disabled = s1b <= 0;
+        document.getElementById('sub1bPlus').disabled = s1b >= s1TotalMax - s1a;
+        document.getElementById('sub1bCard').hidden = game.rank < 4;
+      }
+      if (sub2Unlocked()) {
+        const s2aMax = game.upgrades[1] || 0;
+        const s2a = getS2aPerks();
+        const s2aMaxDynamic = s2aMax - getS2bPerks();
+        document.getElementById('sub2').textContent = `Perks: ${s2a}/${s2aMaxDynamic} · U2 x${format(Math.pow(1.125, s2a), 3)}`;
+        document.getElementById('sub2Minus').disabled = s2a <= 0;
+        document.getElementById('sub2Plus').disabled = s2a >= s2aMaxDynamic;
+      }
+      if (sub2bUnlocked()) {
+        const s2bMax = game.upgrades[1] || 0;
+        const s2b = getS2bPerks();
+        const s2bMaxDynamic = s2bMax - getS2aPerks();
+        const sub2bEl = document.getElementById('sub2b');
+        if (sub2bEl) sub2bEl.textContent = `Perks: ${s2b}/${s2bMaxDynamic} · U2 +${format(s2b * 10, 0)}%`;
+        const sub2bMinus = document.getElementById('sub2bMinus');
+        const sub2bPlus = document.getElementById('sub2bPlus');
+        if (sub2bMinus) sub2bMinus.disabled = s2b <= 0;
+        if (sub2bPlus) sub2bPlus.disabled = s2b >= s2bMaxDynamic;
+      }
+      if (sub3Unlocked()) {
+        const s3aMax = game.upgrades[2] || 0;
+        const s3a = getS3aPerks();
+        const s3b = getS3bPerks();
+        const s3aMaxDynamic = s3aMax - s3b;
+        document.getElementById('sub3').textContent = `Perks: ${s3a}/${s3aMaxDynamic} · Pacing x${format(Math.pow(1.05, s3a), 3)}`;
+        document.getElementById('sub3Minus').disabled = s3a <= 0;
+        document.getElementById('sub3Plus').disabled = s3a >= s3aMaxDynamic;
+      }
+      if (sub3bUnlocked()) {
+        const s3bMax = game.upgrades[2] || 0;
+        const s3b = getS3bPerks();
+        const s3a = getS3aPerks();
+        const s3bMaxDynamic = s3bMax - s3a;
+        document.getElementById('sub3b').textContent = `Perks: ${s3b}/${s3bMaxDynamic} · Tickspeed +${format(s3b * 0.5, 1)}%`;
+        document.getElementById('sub3bMinus').disabled = s3b <= 0;
+        document.getElementById('sub3bPlus').disabled = s3b >= s3bMaxDynamic;
+      }
+      if (sub4Unlocked()) {
+        document.getElementById('sub4').textContent = `U4 lvl ${game.upgrades[3]} → U3 boost +${Math.floor(game.upgrades[3] / 10) * 15}%`;
+      }
+      if (sub5aUnlocked()) {
+        const s5aMax = game.upgrades[4] || 0;
+        const s5a = getS5aPerks();
+        const s5aMaxDynamic = s5aMax - getS5bPerks();
+        document.getElementById('sub5a').textContent = `Perks: ${s5a}/${s5aMaxDynamic} · Cost ÷${format(Math.pow(1.125, s5a), 2)}`;
+        document.getElementById('sub5aMinus').disabled = s5a <= 0;
+        document.getElementById('sub5aPlus').disabled = s5a >= s5aMaxDynamic;
+      }
+      if (sub5bUnlocked()) {
+        const s5bMax = game.upgrades[4] || 0;
+        const s5b = getS5bPerks();
+        const s5a = getS5aPerks();
+        const s5bMaxDynamic = s5bMax - s5a;
+        document.getElementById('sub5b').textContent = `Perks: ${s5b}/${s5bMaxDynamic} · Tickspeed cost ÷${format(Math.pow(1.5, s5b), 2)}`;
+        document.getElementById('sub5bMinus').disabled = s5b <= 0;
+        document.getElementById('sub5bPlus').disabled = s5b >= s5bMaxDynamic;
+      }
+
+      [1, 2, 3, 4, 5, 6].forEach((n, i) => {
+        const btn = document.getElementById(`buy${n}`);
+        if (!btn) return;
+        if (i === 0 && upgrade1Cap() !== null && game.upgrades[0] >= upgrade1Cap()) {
+          btn.disabled = true;
+          return;
+        }
+        if (i === 4 && (!upgrade5Unlocked() || (upgrade5Cap() !== null && game.upgrades[4] >= upgrade5Cap()))) {
+          btn.disabled = true;
+          return;
+        }
+        if (i === 5 && !upgrade6Unlocked()) {
+          btn.disabled = true;
+          return;
+        }
+        if (i === 2 && isInChallenge()) {
+          btn.disabled = true;
+          return;
+        }
+        btn.disabled = game.stardust < upgradeCost(i);
+      });
+
+      ['coreU1', 'coreU2', 'coreU3', 'coreU4', 'coreU5', 'coreS1', 'coreS2', 'coreS3'].forEach((id, i) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        const atCap = game.coreAllocations[i] >= coreAllocationCap();
+        btn.disabled = !coreUnlocked() || freeCores() <= 0 || atCap;
+        if (i < 5) {
+          btn.textContent = `Core Upgrade ${i + 1} (${format(game.coreAllocations[i], 0)}/${coreAllocationCap()})`;
+        } else {
+          btn.textContent = `Core Subupgrade ${i - 4} (${format(game.coreAllocations[i], 0)}/${coreAllocationCap()})`;
+        }
+      });
+
+      const respecBtn = document.getElementById('respecCores');
+      if (respecBtn) {
+        respecBtn.disabled = !coreUnlocked() || usedCores() <= 0;
+      }
+    }
+
+    document.getElementById('buy1').addEventListener('click', () => buyUpgrade(0));
+    document.getElementById('buy2').addEventListener('click', () => buyUpgrade(1));
+safeAddEvent('sub1aMinus', () => allocateS1a(-1));
+      safeAddEvent('sub1aPlus', () => allocateS1a(1));
+      safeAddEvent('sub1bMinus', () => allocateS1b(-1));
+      safeAddEvent('sub1bPlus', () => allocateS1b(1));
+      safeAddEvent('sub2Minus', () => allocateS2a(-1));
+      safeAddEvent('sub2Plus', () => allocateS2a(1));
+      safeAddEvent('sub2bMinus', () => allocateS2b(-1));
+      safeAddEvent('sub2bPlus', () => allocateS2b(1));
+      safeAddEvent('sub3Minus', () => allocateS3a(-1));
+      safeAddEvent('sub3Plus', () => allocateS3a(1));
+      safeAddEvent('sub3bMinus', () => allocateS3b(-1));
+      safeAddEvent('sub3bPlus', () => allocateS3b(1));
+      safeAddEvent('sub5aMinus', () => allocateS5a(-1));
+      safeAddEvent('sub5aPlus', () => allocateS5a(1));
+      safeAddEvent('sub5bMinus', () => allocateS5b(-1));
+      safeAddEvent('sub5bPlus', () => allocateS5b(1));
+    document.getElementById('buy3').addEventListener('click', () => buyUpgrade(2));
+    document.getElementById('buy4').addEventListener('click', () => buyUpgrade(3));
+    document.getElementById('buy5').addEventListener('click', () => buyUpgrade(4));
+    document.getElementById('buy6').addEventListener('click', () => buyUpgrade(5));
+    document.getElementById('buy7').addEventListener('click', () => {
+      if (game.starEnergy >= upgradeStarEnergyCost(6)) {
+        game.starEnergy -= upgradeStarEnergyCost(6);
+        game.upgrades[6] += 1;
+        render();
+      }
+    });
+    
+    function safeAddEvent(id, handler) {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('click', handler);
+    }
+    
+    safeAddEvent('buy8', () => {
+      if (game.starEnergy >= upgradeStarEnergyCost(7)) {
+        game.starEnergy -= upgradeStarEnergyCost(7);
+        game.upgrades[7] += 1;
+        render();
+      }
+    });
+    
+    safeAddEvent('buy9', () => buyUpgrade(8));
+    safeAddEvent('buy10', () => buyUpgrade(9));
+    safeAddEvent('buy11', () => buyUpgrade(10));
+    safeAddEvent('buyTickspeed', buyTickspeed);
+    safeAddEvent('tickspeedStatCard', () => {
+      if (tickspeedUnlocked() && game.stardust >= tickspeedCost()) buyTickspeed();
+    });
+    document.getElementById('tickspeedStatCard').style.cursor = 'pointer';
+    
+    safeAddEvent('rankUp', rankUp);
+    safeAddEvent('tierUp', tierUp);
+    safeAddEvent('tetrUp', tetrUp);
+    safeAddEvent('saveNow', () => { saveGame(); render(); });
+    safeAddEvent('exportSave', () => { downloadSaveFile(); render(); });
+    safeAddEvent('importSave', () => {
+      document.getElementById('importSaveFile').click();
+    });
+    safeAddEvent('importSaveFile', (e) => {
+      const [file] = e.target.files || [];
+      importSaveFile(file);
+      e.target.value = '';
+    });
+    safeAddEvent('downloadGame', () => { downloadGameHtml(); render(); });
+    safeAddEvent('gainStar', generateStar);
+    safeAddEvent('buySEUpgrade0', () => buySEUpgrade(0));
+    safeAddEvent('buySEUpgrade1', () => buySEUpgrade(1));
+    safeAddEvent('buySEUpgrade2', () => buySEUpgrade(2));
+    safeAddEvent('buySEUpgrade3', () => buySEUpgrade(3));
+    safeAddEvent('buySEUpgrade4', () => buySEUpgrade(4));
+    safeAddEvent('buySEUpgrade5', () => buySEUpgrade(5));
+    safeAddEvent('buyStarUpgrade0', () => buyStarUpgrade(0));
+    safeAddEvent('buyStarUpgrade1', () => buyStarUpgrade(1));
+    safeAddEvent('buyStarUpgrade2', () => buyStarUpgrade(2));
+    safeAddEvent('buyStarUpgrade3', () => buyStarUpgrade(3));
+    safeAddEvent('buyStarUpgrade4', () => buyStarUpgrade(4));
+    safeAddEvent('buyStarUpgrade5', () => buyStarUpgrade(5));
+    safeAddEvent('buyStarUpgrade6', () => buyStarUpgrade(6));
+    safeAddEvent('buyStarUpgrade7', () => buyStarUpgrade(7));
+
+    const switchMilestoneTab = (tab) => {
+      document.getElementById('milestonesRankPanel').style.display = tab === 'rank' ? 'block' : 'none';
+      document.getElementById('milestonesTierPanel').style.display = tab === 'tier' ? 'block' : 'none';
+      document.getElementById('milestonesTetrPanel').style.display = tab === 'tetr' ? 'block' : 'none';
+      document.getElementById('milestonesChallengePanel').style.display = tab === 'challenge' ? 'block' : 'none';
+      document.querySelectorAll('#tab-milestones .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = btn.style.background.replace('active', '');
+      });
+      document.getElementById('milestoneTab' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+    };
+    safeAddEvent('milestoneTabRank', () => switchMilestoneTab('rank'));
+    safeAddEvent('milestoneTabTier', () => switchMilestoneTab('tier'));
+    safeAddEvent('milestoneTabTetr', () => switchMilestoneTab('tetr'));
+    safeAddEvent('milestoneTabChallenge', () => switchMilestoneTab('challenge'));
+    safeAddEvent('buySCAug0', () => buyStarsCoreAugment(0));
+    safeAddEvent('buySCAug1', () => buyStarsCoreAugment(1));
+    safeAddEvent('buySCAug2', () => buyStarsCoreAugment(2));
+    safeAddEvent('buySCAug3', () => buyStarsCoreAugment(3));
+    safeAddEvent('buyRad0', () => buyRadiationUpgrade(0));
+    safeAddEvent('buyRad1', () => buyRadiationUpgrade(1));
+    safeAddEvent('buyRad2', () => buyRadiationUpgrade(2));
+    safeAddEvent('buyRad3', () => buyRadiationUpgrade(3));
+    safeAddEvent('buyRad4', () => buyRadiationUpgrade(4));
+    safeAddEvent('buyFusion0', () => buyFusionUpgrade(0));
+    safeAddEvent('buyFusion1', () => buyFusionUpgrade(1));
+    safeAddEvent('buyFusion2', () => buyFusionUpgrade(2));
+    safeAddEvent('coreU1', () => allocateCore(0));
+    safeAddEvent('coreU2', () => allocateCore(1));
+    safeAddEvent('coreU3', () => allocateCore(2));
+    safeAddEvent('coreU4', () => allocateCore(3));
+    safeAddEvent('coreU5', () => allocateCore(4));
+    safeAddEvent('coreS1', () => allocateCore(5));
+    safeAddEvent('coreS2', () => allocateCore(6));
+    safeAddEvent('coreS3', () => allocateCore(7));
+    safeAddEvent('coreP1', () => allocateCore(8));
+    safeAddEvent('coreP2', () => allocateCore(9));
+    safeAddEvent('coreP3', () => allocateCore(10));
+    safeAddEvent('coreS4', () => allocateCore(11));
+    safeAddEvent('coreU6', () => allocateCore(12));
+    safeAddEvent('coreU7', () => allocateCore(13));
+    safeAddEvent('coreU8', () => allocateCore(14));
+    safeAddEvent('coreRad', () => allocateCore(15));
+    safeAddEvent('respecCores', () => {
+      if (confirm('Respec cores? This resets stardust, upgrades, and subupgrades like a rank reset.')) {
+        respecCores();
+      }
+    });
+    safeAddEvent('buyCore', buyCore);
+    safeAddEvent('startChallenge1', startChallenge1);
+    safeAddEvent('exitChallenge', exitChallenge);
+    safeAddEvent('startChallenge2', startChallenge2);
+    safeAddEvent('hardReset', () => {
+      if (confirm('Hard reset? This will erase your save and progress.')) {
+        hardResetGame();
+      }
+    });
+
+    loadGame();
+
+    document.getElementById('u2PowerCard').style.display = 'none';
+    document.getElementById('pacingSystemCard').style.display = 'none';
+    document.getElementById('u4Card').style.display = 'none';
+    document.getElementById('u5Card').style.display = 'none';
+
+    setInterval(() => {
+      try {
+        let addition = applyStardustGainSoftcap(generationPerSecond()) / 10;
+        
+        if (addition > 1e10) {
+          addition = Math.floor(addition);
+        }
+        
+        if (!Number.isFinite(addition) || addition > 1e100 || isNaN(addition) || addition < 0) {
+          addition = 0;
+        }
+        
+        game.stardust = safeAdd(game.stardust, addition);
+        
+        game.totalPlayTime += 0.1;
+        
+        runAutoBuyers();
+        autoBuySubupgradesByRequirement();
+        checkStarsCoreLevel();
+        const radGain = radiationGainPerSecond() / 10;
+        if (Number.isFinite(radGain) && radGain > 0) game.radiation = safeAdd(game.radiation, radGain);
+        const fusionGain = fusionGainPerSecond() / 10;
+        if (Number.isFinite(fusionGain) && fusionGain > 0) game.fusion = safeAdd(game.fusion, fusionGain);
+        render();
+      } catch (e) {
+        console.error('Game loop error:', e);
+      }
+    }, 100);
+
+    setInterval(() => {
+      try {
+        saveGame();
+        render();
+      } catch (e) {
+        console.error('Save error:', e);
+      }
+    }, 5000);
+
+    try {
+      render();
+    } catch (e) {
+      console.error('Initial render error:', e);
+    }
+  </script>
+
+
+
+</body></html>
