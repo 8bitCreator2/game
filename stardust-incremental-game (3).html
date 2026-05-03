@@ -1102,16 +1102,16 @@
           <div class="upgrade-title" style="font-size: 0.65rem;"><span class="badge" style="background:#4a3a1a;color:#ffd700;">S1a</span> Base <span class="bonus-tag" style="color:#4ade80">+3%/perk</span></div>
           <p class="muted" style="font-size: 0.55rem;">U1 value: +3% per perk (each U1 level gives more).</p>
           <p style="margin: 0.2rem 0;">
-            <span class="muted" id="sub1" style="font-size: 0.5rem; color:#888;">Perks: 124/177 · x4.72</span>
+            <span class="muted" id="sub1" style="font-size: 0.5rem; color:#888;">Perks: 0/0 · x1.00</span>
             <button id="sub1aMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
             <button id="sub1aPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
           </p>
         </div>
-        <div class="subtab" id="sub1bCard" style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dotted #444;">
+        <div class="subtab" id="sub1bCard" hidden style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dotted #444;">
           <div class="upgrade-title" style="font-size: 0.6rem;"><span class="badge" style="background:#2a4a3a;color:#7d6;">S1b</span> Dust <span class="bonus-tag" style="color:#7d6">+3%/perk</span></div>
           <p class="muted" style="font-size: 0.55rem;">Stardust mult: +3% per perk.</p>
           <p style="margin: 0.2rem 0;">
-            <span class="muted" id="sub1b" style="font-size: 0.5rem; color:#888;">Perks: 115/168 · x4.45</span>
+            <span class="muted" id="sub1b" style="font-size: 0.5rem; color:#888;">Perks: 0/0 · x1.00</span>
             <button id="sub1bMinus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a2a2a; color: #f66; border: 1px solid #533; border-radius: 2px; cursor: pointer;">-</button>
             <button id="sub1bPlus" style="font-size: 0.4rem; padding: 0.1rem 0.25rem; background: #2a3a2a; color: #4a6; border: 1px solid #353; border-radius: 2px; cursor: pointer;">+</button>
           </p>
@@ -1596,19 +1596,8 @@
 while (game.upgrades.length < 11) game.upgrades.push(0);
       game.subUpgrades = Array.isArray(state.subUpgrades) ? safe.subUpgrades.map((_, i) => Math.floor(state.subUpgrades[i] || 0)) : safe.subUpgrades;
       while (game.subUpgrades.length < 10) game.subUpgrades.push(0);
-      // Fix perks to not exceed U1 level
-      const u1 = getU1Level();
-      let s1a = getS1aPerks();
-      let s1b = getS1bPerks();
-      let total = s1a + s1b;
-      if (total > u1) {
-        s1a = Math.min(s1a, u1);
-        s1b = Math.min(s1b, u1);
-        total = s1a + s1b;
-        if (total > u1) { s1a = u1; s1b = 0; }
-      }
-      game.subUpgrades[0] = s1a;
-      game.subUpgrades[7] = s1b;
+      // Normalize S1 perks for unlock state and caps
+      normalizeS1Perks();
       game.cores = Number.isFinite(state.cores) ? Math.max(0, Math.floor(state.cores)) : safe.cores;
       game.coreAllocations = Array.isArray(state.coreAllocations) ? safe.coreAllocations.map((_, i) => {
         const v = state.coreAllocations[i];
@@ -1738,6 +1727,8 @@ while (game.upgrades.length < 11) game.upgrades.push(0);
     function hardResetGame() {
       localStorage.removeItem(SAVE_KEY);
       applyState(defaultState());
+      game.subUpgrades[0] = 0;
+      game.subUpgrades[7] = 0;
       lastSavedAt = null;
       saveMessage = '';
       render();
@@ -1881,6 +1872,7 @@ ${document.documentElement.outerHTML}`;
     const radiationCoreMultiplier = () => coreBoostMultiplier(15);
     const upgrade6PacingBoost = () => 1 + (game.upgrades[5] || 0) * 0.05 * coreBoostMultiplier(12);
     const sub1Unlocked = () => game.subUnlocked[0] || game.rank >= 4;
+    const sub1bUnlocked = () => game.rank >= 4;
     const sub2Unlocked = () => game.subUnlocked[1] || game.tier >= 1;
     const sub2bUnlocked = () => game.tier >= 2;
     const sub3Unlocked = () => game.subUnlocked[2] || game.tier >= 1;
@@ -1902,8 +1894,10 @@ ${document.documentElement.outerHTML}`;
     const coreUnlocked = () => game.rank >= 8 || game.tier >= 2;
 
     const coreCost = () => {
-      if (game.cores === 0) return 1e17;
-      return Math.floor(1e38 * Math.pow(1e5, game.cores - 1));
+      if (game.cores === 0) return 1e17; // First core
+      if (game.cores === 1) return 1e25; // Second core
+      if (game.cores === 2) return 1e38; // Third core
+      return Math.floor(1e38 * Math.pow(1e12, game.cores - 2));
     };
 
     function buyCore() {
@@ -2288,6 +2282,23 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
     const getS1bPerks = () => Math.max(0, game.subUpgrades[7] || 0);
     const getFreePerks = () => 0;
 
+    function normalizeS1Perks() {
+      const u1 = Math.max(0, Math.floor(getU1Level()));
+      let s1a = Math.max(0, Math.floor(getS1aPerks()));
+      let s1b = Math.max(0, Math.floor(getS1bPerks()));
+      if (!sub1bUnlocked()) {
+        s1a += s1b;
+        s1b = 0;
+      }
+      if (s1a > u1) s1a = u1;
+      const s1bMax = Math.max(0, u1 - s1a);
+      if (s1b > s1bMax) s1b = s1bMax;
+      game.subUpgrades[0] = s1a;
+      game.subUpgrades[7] = s1b;
+      return { u1, s1a, s1b };
+    }
+
+
     // S1a: +3% to U1 BASE VALUE per perk
     const sub1U1BaseBonus = () => 1 + getS1aPerks() * 0.03;
     const sub1CoreMultiplier = () => coreSubBoostMultiplier(5);
@@ -2296,9 +2307,7 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
     const sub1bStardustMultiplier = () => 1 + getS1bPerks() * 0.03;
 
     function allocateS1a(change) {
-      const u1 = getU1Level();
-      const s1a = getS1aPerks();
-      const s1b = getS1bPerks();
+      const { u1, s1a, s1b } = normalizeS1Perks();
       const newS1a = s1a + change;
       if (newS1a < 0 || s1b + newS1a > u1) return false;
       game.subUpgrades[0] = newS1a;
@@ -2308,9 +2317,8 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
     }
 
     function allocateS1b(change) {
-      const u1 = getU1Level();
-      const s1a = getS1aPerks();
-      const s1b = getS1bPerks();
+      if (!sub1bUnlocked()) return false;
+      const { u1, s1a, s1b } = normalizeS1Perks();
       const newS1b = s1b + change;
       if (newS1b < 0 || s1a + newS1b > u1) return false;
       game.subUpgrades[7] = newS1b;
@@ -3315,6 +3323,10 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
         buyBtn.disabled = game.stardust < cost;
         
         let coreInfo = `Stardust boost: <b>x${format(coreStardustBoost(), 2)}</b>${game.cores >= 1 ? ` (1 + log11(stardust))` : ''}`;
+        if (game.cores < 2) {
+          coreInfo += `<br>Second core cost: <b>${format(1e25, 0)}</b> stardust`;
+        }
+        coreInfo += `<br>Next core cost: <b>${format(cost, 0)}</b> stardust`;
         if (game.cores >= 2) {
           coreInfo += `<br>Tickspeed boost: <b>x${format(coreBoostMultiplier(1), 2)}</b> (log12(tickspeed) + 1)`;
         }
@@ -3752,10 +3764,10 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
         labelEl.textContent = labels[i];
       });
 
+      document.getElementById('sub1bCard').hidden = !sub1bUnlocked();
+
       if (sub1Unlocked()) {
-        const u1 = getU1Level();
-        const s1a = getS1aPerks();
-        const s1b = getS1bPerks();
+        const { u1, s1a, s1b } = normalizeS1Perks();
         const s1TotalMax = u1;
         const s1aMax = s1TotalMax - s1b;
         document.getElementById('sub1').textContent = `Perks: ${s1a}/${s1aMax} · x${sub1U1BaseBonus().toFixed(2)}`;
@@ -3764,7 +3776,6 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
         document.getElementById('sub1aPlus').disabled = s1a >= s1aMax;
         document.getElementById('sub1bMinus').disabled = s1b <= 0;
         document.getElementById('sub1bPlus').disabled = s1b >= s1TotalMax - s1a;
-        document.getElementById('sub1bCard').hidden = game.rank < 4;
       }
       if (sub2Unlocked()) {
         const s2aMax = game.upgrades[1] || 0;
