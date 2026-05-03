@@ -3321,6 +3321,10 @@ game.upgrades = [0, 0, 0, 0, 0, 0, u7, u8, game.upgrades[8] || 0, game.upgrades[
         buyBtn.disabled = game.stardust < cost;
         
         let coreInfo = `Stardust boost: <b>x${format(coreStardustBoost(), 2)}</b>${game.cores >= 1 ? ` (1 + log11(stardust))` : ''}`;
+        if (game.cores < 2) {
+          coreInfo += `<br>Second core cost: <b>${format(1e25, 0)}</b> stardust`;
+        }
+        coreInfo += `<br>Next core cost: <b>${format(cost, 0)}</b> stardust`;
         if (game.cores >= 2) {
           coreInfo += `<br>Tickspeed boost: <b>x${format(coreBoostMultiplier(1), 2)}</b> (log12(tickspeed) + 1)`;
         }
