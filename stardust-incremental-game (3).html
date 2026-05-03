@@ -1894,8 +1894,10 @@ ${document.documentElement.outerHTML}`;
     const coreUnlocked = () => game.rank >= 8 || game.tier >= 2;
 
     const coreCost = () => {
-      if (game.cores === 0) return 1e17;
-      return Math.floor(1e38 * Math.pow(1e5, game.cores - 1));
+      if (game.cores === 0) return 1e17; // First core
+      if (game.cores === 1) return 1e25; // Second core
+      if (game.cores === 2) return 1e38; // Third core
+      return Math.floor(1e38 * Math.pow(1e12, game.cores - 2));
     };
 
     function buyCore() {
