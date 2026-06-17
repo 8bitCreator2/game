@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stardust Incremental</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+    :root {
+      --bg: #0a0a0f;
+      --panel: #12121a;
+      --line: #2a2a3a;
+      --text: #e8e8f0;
+      --muted: #6a6a7a;
+      --accent: #fff;
+      --gold: #ffd700;
+      --green: #4ade80;
+      --blue: #4da6ff;
+      --red: #ff6b6b;
+      --purple: #a855f7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: 
+        radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, #0f0f1a 0%, transparent 40%),
+        var(--bg);
+      color: var(--text);
+      font-family: 'VT323', 'IBM Plex Mono', monospace;
+      padding: 1rem;
+    }
+
+    .app {
+      width: min(800px, 98vw);
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 1.25rem;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+
+    h1 {
+      margin: 0 0 1.25rem;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      text-align: center;
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(255,255,255,0.3);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #1a1a24 0%, #14141c 100%);
+      padding: 0.8rem;
+      text-align: center;
+      border-radius: 6px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .stat:hover {
+      transform: translateY(-2px);
+      border-color: #444;
+    }
+
+    .stat .label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 0.3rem;
+      letter-spacing: 0.1em;
+    }
+
+    .stat .value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.75rem;
+    }
+
+    .stat#stardustStat .value { color: var(--gold); }
+    .stat#gpsStat .value { color: var(--green); }
+    .stat#rankStat .value { color: var(--blue); }
+    .stat#starsStat .value { color: var(--purple); }
+
+    .tabs {
+      display: flex;
+      gap: 0.3rem;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.5rem;
+      cursor: pointer;
+      border-radius: 4px 4px 0 0;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      border-color: var(--purple);
+      color: var(--purple);
+      background: linear-gradient(180deg, rgba(40,20,50,0.5) 0%, var(--panel) 100%);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .milestones-section {
+      border: 1px solid var(--purple);
+      background: linear-gradient(180deg, rgba(40,20,50,0.8) 0%, rgba(30,15,40,0.9) 100%);
+      padding: 0.9rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .milestones-section.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .milestones-title {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.6rem;
+      color: var(--purple);
+      margin-bottom: 0.5rem;
+    }
+
+    .milestone {
+      display: inline-block;
+      padding: 0.4rem 0.6rem;
+      margin: 0.2rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      background: #1a1024;
+      border: 1px solid #333;
+    }
+
+    .milestone.locked {
+      opacity: 0.4;
+    }
+
+    .milestone.unlocked {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .autobuyer-toggle {
+      margin-top: 0.8rem;
+      padding-top: 0.6rem;
+      border-top: 1px solid #333;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .autobuyer-toggle label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #333;
+      border-radius: 24px;
+      transition: 0.2s;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: #666;
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--green);
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+      background: white;
+    }
+
+    .toggle-switch input:disabled + .toggle-slider {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .stars-section {
+      border: 1px solid var(--purple);
+      background: linear-gradient(180deg, rgba(40,20,50,0.8) 0%, rgba(30,15,40,0.9) 100%);
+      padding: 0.9rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      display: none;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
+    }
+
+    .stars-section.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .stars-section .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+
+    .stars-section .title {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.65rem;
+      color: var(--purple);
+      text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+    }
+
+    .stars-section button {
+      padding: 0.5rem 1rem;
+      border: 2px solid var(--purple);
+      background: linear-gradient(180deg, #2a1a3a 0%, #1f0f2f 100%);
+      color: var(--purple);
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .stars-section button:hover:not(:disabled) {
+      background: linear-gradient(180deg, #3a2a4a 0%, #2f1f3f 100%);
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+    }
+
+    .stars-section button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .stars-info {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .stars-info span {
+      color: var(--gold);
+    }
+
+    .rank-section {
+      border: 1px solid var(--green);
+      background: linear-gradient(180deg, rgba(20,40,20,0.8) 0%, rgba(15,30,15,0.9) 100%);
+      padding: 0.9rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+      display: none;
+      box-shadow: 0 0 15px rgba(74, 222, 128, 0.15);
+    }
+
+    .rank-section.visible {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .rank-section .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+
+    .rank-section .title {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.65rem;
+      color: var(--green);
+      text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+    }
+
+    .rank-section button {
+      padding: 0.5rem 1rem;
+      border: 2px solid var(--green);
+      background: linear-gradient(180deg, #1a2a1a 0%, #0f1f0f 100%);
+      color: var(--green);
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .rank-section button:hover:not(:disabled) {
+      background: linear-gradient(180deg, #2a3a2a 0%, #1f2f1f 100%);
+      box-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+    }
+
+    .rank-section button:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .rank-info {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .rank-info span {
+      color: var(--gold);
+    }
+
+    .rank-rewards {
+      font-size: 0.8rem;
+      color: var(--purple);
+      margin-top: 0.3rem;
+    }
+
+    .research-section {
+      border: 1px solid var(--purple);
+      background: linear-gradient(180deg, rgba(40,20,50,0.8) 0%, rgba(30,15,40,0.9) 100%);
+      padding: 0.9rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .research-section.hidden {
+      display: none;
+    }
+
+    .research-item {
+      margin-top: 0.6rem;
+    }
+
+    .research-item .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+
+    .research-item .name {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.5rem;
+      color: var(--purple);
+    }
+
+    .research-item .level {
+      font-size: 1rem;
+      color: var(--gold);
+      font-weight: bold;
+    }
+
+    .research-item .bonus {
+      font-size: 0.8rem;
+      color: var(--green);
+      margin-bottom: 0.4rem;
+    }
+
+    .research-item button {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--purple);
+      background: linear-gradient(180deg, #2a1a3a 0%, #1a0f2a 100%);
+      color: var(--purple);
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      text-transform: uppercase;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .research-item button:hover:not(:disabled) {
+      background: linear-gradient(180deg, #3a2a4a 0%, #2a1f3a 100%);
+    }
+
+    .research-item button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .section-title {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.6rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .upgrades {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .upgrade {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #1a1a24 0%, #14141c 100%);
+      padding: 0.9rem;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .upgrade:hover {
+      border-color: #444;
+      transform: translateX(4px);
+    }
+
+    .upgrade.unlocked {
+      border-color: #3a3a4a;
+    }
+
+    .upgrade.locked {
+      opacity: 0.4;
+      display: none;
+    }
+
+    .upgrade.stars-upgrade {
+      border-color: var(--purple);
+      background: linear-gradient(180deg, rgba(40,20,50,0.8) 0%, rgba(30,15,40,0.9) 100%);
+    }
+
+    .upgrade.stars-upgrade .name {
+      color: var(--purple);
+    }
+
+    .upgrade.stars-upgrade .level {
+      color: var(--purple);
+    }
+
+    .upgrade .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.4rem;
+    }
+
+    .upgrade .name {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.55rem;
+      text-transform: uppercase;
+    }
+
+    .upgrade .level {
+      font-size: 1rem;
+      color: var(--gold);
+      font-weight: bold;
+    }
+
+    .upgrade .desc {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+
+    .upgrade .bonus {
+      font-size: 0.8rem;
+      color: var(--green);
+      margin-bottom: 0.4rem;
+    }
+
+    .upgrade button {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid #444;
+      background: linear-gradient(180deg, #222 0%, #1a1a1a 100%);
+      color: var(--text);
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .upgrade button:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, #2a2a2a 0%, #222 100%);
+      transform: translateY(-1px);
+    }
+
+    .upgrade button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .upgrade button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .subupgrade {
+      margin-top: 0.6rem;
+      padding-top: 0.6rem;
+      border-top: 1px dashed #333;
+    }
+
+    .subupgrade .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.3rem;
+    }
+
+    .subupgrade .name {
+      font-size: 0.75rem;
+      color: var(--purple);
+      text-transform: uppercase;
+    }
+
+    .subupgrade .level {
+      font-size: 0.8rem;
+      color: var(--purple);
+    }
+
+    .subupgrade .bonus {
+      font-size: 0.7rem;
+      color: var(--green);
+      margin-bottom: 0.3rem;
+    }
+
+    .subupgrade button {
+      width: 100%;
+      padding: 0.4rem;
+      border: 1px solid var(--purple);
+      background: #1a1024;
+      color: var(--purple);
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      border-radius: 3px;
+      transition: all 0.15s;
+    }
+
+    .subupgrade button:hover:not(:disabled) {
+      background: #2a1a34;
+    }
+
+    .subupgrade button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .save-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .save-section button {
+      flex: 1;
+      min-width: 100px;
+      padding: 0.5rem;
+      border: 1px solid #444;
+      background: #1a1a24;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: 'VT323', monospace;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .save-section button:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
+
+    .save-section button.danger:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .save-section button.export:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+    }
+
+    .save-status {
+      width: 100%;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--green);
+      margin-top: 0.5rem;
+    }
+
+    @media (max-width: 500px) {
+      .stats {
+        grid-template-columns: 1fr 1fr;
+      }
+      
+      .upgrade .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Stardust</h1>
+    
+    <div class="stats">
+      <div class="stat" id="stardustStat">
+        <div class="label">Stardust</div>
+        <div class="value" id="stardust">0</div>
+      </div>
+      <div class="stat" id="gpsStat">
+        <div class="label">Per Second</div>
+        <div class="value" id="gps">1</div>
+      </div>
+      <div class="stat" id="rankStat">
+        <div class="label">Rank</div>
+        <div class="value" id="rank">0</div>
+      </div>
+      <div class="stat" id="starsStat">
+        <div class="label">Stars</div>
+        <div class="value" id="stars">0</div>
+      </div>
+    </div>
+
+    <div class="rank-section" id="rankSection">
+      <div class="header">
+        <span class="title">Rank Up</span>
+        <button id="rankUpBtn" disabled>Rank Up</button>
+      </div>
+      <div class="rank-info">
+        Current Rank: <span id="currentRank">0</span><br>
+        Requirement: <span id="rankReq">1,000</span> stardust<br>
+        <span id="rankInfoText" style="color: var(--red);">Resets: Stardust, All Upgrades</span><br>
+        <span class="rank-rewards" id="rankRewards">Reward: Unlock Upgrade 3</span>
+      </div>
+    </div>
+
+    <div class="stars-section" id="starsSection">
+      <div class="header">
+        <span class="title">Create Stars</span>
+        <button id="createStarBtn" disabled>Create</button>
+      </div>
+      <div class="stars-info">
+        Ready: <span id="starsToCreate">0</span> | Next star: <span id="nextStarAt">10,000,000</span> stardust<br>
+        <span style="color: var(--green);">Creates: Stars (permanent, resets stardust & upgrades)</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="upgrades">Upgrades</button>
+      <button class="tab-btn" data-tab="milestones">Milestones</button>
+      <button class="tab-btn" data-tab="research">Research</button>
+      <button class="tab-btn" data-tab="starlevel" id="starLevelTab" style="display: none;">Star Level</button>
+    </div>
+
+    <div id="tab-upgrades" class="tab-content active">
+      <div class="section-title">Upgrades</div>
+      <div class="upgrades" id="upgrades-container">
+        <div class="upgrade unlocked" id="u1">
+          <div class="header">
+            <span class="name">Upgrade 1 · Generator</span>
+            <span class="level" id="u1Level">0</span>
+          </div>
+          <div class="bonus" id="u1Bonus">Current: +0 base</div>
+          <div class="desc">+1 base generation per level</div>
+          <button id="buyU1">Buy (Cost: 8)</button>
+          
+          <div class="autobuyer-toggle" id="u1Autobuyer" style="display: none;">
+            <label>Auto:</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoU1Toggle" disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="subupgrade" id="sub1" style="display: none;">
+            <div class="header">
+              <span class="name">Subupgrade 1 · Boost</span>
+              <span class="level" id="sub1Level">0</span>
+            </div>
+            <div class="bonus" id="sub1Bonus">Current: x1.00</div>
+            <button id="buySub1">Buy (Cost: 1 ★)</button>
+          </div>
+        </div>
+
+        <div class="upgrade unlocked" id="u2">
+          <div class="header">
+            <span class="name">Upgrade 2 · Multiplier</span>
+            <span class="level" id="u2Level">0</span>
+          </div>
+          <div class="bonus" id="u2Bonus">Current: x1.00</div>
+          <div class="desc">+50% generation per level</div>
+          <button id="buyU2">Buy (Cost: 15)</button>
+          
+          <div class="autobuyer-toggle" id="u2Autobuyer" style="display: none;">
+            <label>Auto:</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoU2Toggle" disabled>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="upgrade locked" id="u3">
+          <div class="header">
+            <span class="name">Upgrade 3 · Compressor</span>
+            <span class="level" id="u3Level">0</span>
+          </div>
+          <div class="bonus" id="u3Bonus">Current: ÷1.00 cost</div>
+          <div class="desc">Divides U1 & U2 costs by 1.5 per level</div>
+          <button id="buyU3">Buy (Cost: 50)</button>
+        </div>
+
+        <div class="upgrade locked" id="u4">
+          <div class="header">
+            <span class="name">Upgrade 4 · Booster</span>
+            <span class="level" id="u4Level">0</span>
+          </div>
+          <div class="bonus" id="u4Bonus">Current: +0% boost</div>
+          <div class="desc">+25% base generation per level</div>
+          <button id="buyU4">Buy (Cost: 100)</button>
+        </div>
+
+        <div class="upgrade locked" id="u5">
+          <div class="header">
+            <span class="name">Upgrade 5 · Amplifier</span>
+            <span class="level" id="u5Level">0</span>
+          </div>
+          <div class="bonus" id="u5Bonus">Current: +0% amp</div>
+          <div class="desc">+50% multiplier per level</div>
+          <button id="buyU5">Buy (Cost: 500)</button>
+        </div>
+
+        <div class="upgrade locked stars-upgrade" id="u6">
+          <div class="header">
+            <span class="name">Upgrade 6 · Booster</span>
+            <span class="level" id="u6Level">0</span>
+          </div>
+          <div class="bonus" id="u6Bonus">Current: x1.00</div>
+          <div class="desc">Multiplies stardust gain</div>
+          <button id="buyU6">Buy (Cost: 1 ★)</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-milestones" class="tab-content">
+      <div class="milestones-section" id="milestonesSection">
+        <div class="milestones-title">★ Star Milestones</div>
+        <div id="milestonesList"></div>
+      </div>
+    </div>
+
+    <div id="tab-research" class="tab-content">
+      <div class="research-section" id="researchSection">
+        <div class="milestones-title">⚗ Research</div>
+        <div class="research-item">
+          <div class="header">
+            <span class="name">Generator Tech</span>
+            <span class="level" id="research0Level">0</span>
+          </div>
+          <div class="bonus" id="research0Bonus">+0 base gen</div>
+          <button id="buyResearch0">Research (Cost: 3 ★)</button>
+        </div>
+        <div class="research-item" id="research2" style="display: none;">
+          <div class="header">
+            <span class="name">Star Level Unlock</span>
+            <span class="level" id="research1Level">0</span>
+          </div>
+          <div class="bonus" id="research1Bonus">Unlocks Star Level</div>
+          <button id="buyResearch1">Research (Cost: 25 ★)</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-starlevel" class="tab-content">
+      <div class="research-section">
+        <div class="milestones-title">⬡ Star Level</div>
+        <div class="research-item">
+          <div class="header">
+            <span class="level" id="starLevel">0</span>
+          </div>
+          <div class="bonus" id="starLevelBonus">x1.0 stars, +0% stardust, -0% star cost</div>
+          <button id="buyStarLevel">Level Up (Cost: 0)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="save-section">
+      <button id="saveBtn">Save</button>
+      <button id="exportBtn" class="export">Export</button>
+      <button id="importBtn">Import</button>
+      <button id="hardResetBtn" class="danger">Reset</button>
+      <input type="file" id="importFile" accept=".json" style="display:none">
+      <div class="save-status" id="saveStatus"></div>
+    </div>
+  </div>
+
+  <script>
+    const SAVE_KEY = 'stardust_v1';
+    
+    let game = {
+      stardust: 0,
+      rank: 0,
+      stars: 0,
+      starsUnlocked: false,
+      milestonesUnlocked: [],
+      autoU1: false,
+      autoU1Enabled: false,
+      autoU2: false,
+      autoU2Enabled: false,
+      upgrades: [0, 0, 0, 0, 0],
+      subUpgrades: [0],
+      research: [0, 0],
+      starLevel: 0
+    };
+
+    const BASE_COSTS = [8, 15, 50, 100, 500, 1];
+    const GROWTH = [1.2, 1.35, 1.5, 1.6, 1.7, 2];
+    const RANK_REQUIREMENT = 1000;
+    const STAR_COST = 10000000;
+
+    const STAR_MILESTONES = [
+      { stars: 1, genMult: 3, costReduc: 0.40, name: '3x Gen, -40% Cost, Auto U1, Unlock U6' },
+      { stars: 10, genMult: 1, costReduc: 0.20, name: '-20% Cost, Auto U2, Unlock R7-10, Res2' },
+    ];
+
+    const RANK_REWARDS = {
+      1: { name: 'Upgrade 3', desc: 'Compressor - divides costs', unlockU3: true },
+      2: { name: '-30% Cost', desc: 'Permanent cost reduction', costReduction: 0.30 },
+      3: { name: 'Upgrade 4', desc: 'Booster - +25% base gen', unlockU4: true },
+      4: { name: '-50% Cost', desc: 'More permanent reduction', costReduction: 0.50 },
+      5: { name: 'Upgrade 5', desc: 'Amplifier - +50% mult', unlockU5: true },
+      6: { name: 'Stars', desc: 'Unlock Stars system' },
+      7: { name: 'Star Boost', desc: 'x1.5 + stars stardust', stardustBoost: true },
+      8: { name: '+50% Gen', desc: 'Permanent boost', genBoost: 0.50 },
+      9: { name: 'TBD', desc: 'In development', inDevelopment: true },
+      10: { name: 'x2 All', desc: 'Double everything', doubleAll: true }
+    };
+
+    function format(num) {
+      if (num < 1000) return num.toFixed(1);
+      if (num < 1e6) return (num / 1e3).toFixed(2) + 'K';
+      if (num < 1e9) return (num / 1e6).toFixed(2) + 'M';
+      if (num < 1e12) return (num / 1e9).toFixed(2) + 'B';
+      return num.toExponential(2);
+    }
+
+    function getRankCostReduction() {
+      let reduction = 0;
+      for (let i = 2; i <= game.rank; i++) {
+        if (RANK_REWARDS[i] && RANK_REWARDS[i].costReduction) {
+          reduction += RANK_REWARDS[i].costReduction;
+        }
+      }
+      return Math.min(reduction, 0.95);
+    }
+
+    function getStarsMilestoneBonuses() {
+      let genMult = 1;
+      let costReduc = 0;
+      
+      for (let m of STAR_MILESTONES) {
+        if (game.milestonesUnlocked.includes(m.stars)) {
+          genMult *= m.genMult;
+          costReduc += m.costReduc;
+        }
+      }
+      
+      return { genMult, costReduc: Math.min(costReduc, 0.95) };
+    }
+
+    function getU3CostDivisor() {
+      const u3Level = game.upgrades[2] || 0;
+      return Math.pow(1.5, u3Level);
+    }
+
+    function getSub1Multiplier() {
+      const sub1Level = game.subUpgrades[0] || 0;
+      return Math.pow(1.1, sub1Level);
+    }
+
+    function getBaseGeneration() {
+      const u4Bonus = (game.upgrades[3] || 0) * 0.25;
+      const starBonus = getStarsMilestoneBonuses();
+      const researchMult = (game.research[0] || 0) > 0 ? 2 : 1;
+      return (1 + game.upgrades[0]) * researchMult * (1 + u4Bonus) * getSub1Multiplier() * starBonus.genMult;
+    }
+
+    function getResearchCost(level) {
+      if (level === 0) return 3;
+      return Math.floor(3 * Math.pow(2, level));
+    }
+
+    function buyResearch(index) {
+      const costs = [3, 25];
+      const cost = costs[index];
+      if (game.stars >= cost && (game.research[index] || 0) < 1) {
+        game.stars -= cost;
+        game.research[index] = 1;
+        render();
+      }
+    }
+    
+    function getStarLevelCost() {
+      return Math.floor(1000000 * Math.pow(10, game.starLevel));
+    }
+    
+    function buyStarLevel() {
+      const cost = getStarLevelCost();
+      if (game.stardust >= cost && game.research[1] >= 1) {
+        game.stardust -= cost;
+        game.starLevel++;
+        game.rank = 0;
+        game.upgrades = [0, 0, 0, 0, 0, game.upgrades[5] || 0];
+        render();
+      }
+    }
+    
+    function getStarLevelMult() {
+      return 1 + game.starLevel * 0.5;
+    }
+    
+    function getStarLevelCostReduc() {
+      return game.starLevel * 0.1;
+    }
+
+    function getMultiplier() {
+      const u5Bonus = (game.upgrades[4] || 0) * 0.50;
+      return (1 + game.upgrades[1] * 0.5) * (1 + u5Bonus);
+    }
+
+    function getGenerationPerSecond() {
+      return getBaseGeneration() * getMultiplier();
+    }
+
+    function getUpgradeCost(index) {
+      const u3Level = game.upgrades[2] || 0;
+      let baseCost = BASE_COSTS[index];
+      let level = game.upgrades[index] || 0;
+      
+      if (level > 70) {
+        const pre70 = Math.pow(GROWTH[index], 70);
+        const post70 = Math.pow(GROWTH[index] * 1.3, level - 70);
+        baseCost = baseCost * pre70 * post70;
+      } else {
+        baseCost = baseCost * Math.pow(GROWTH[index], level);
+      }
+      
+      if (index < 2 && u3Level > 0) {
+        baseCost = baseCost / getU3CostDivisor();
+      }
+      
+      // Apply rank cost reduction
+      const rankReduction = getRankCostReduction();
+      baseCost = baseCost * (1 - rankReduction);
+      
+      // Apply star milestone cost reduction
+      const starBonus = getStarsMilestoneBonuses();
+      baseCost = baseCost * (1 - starBonus.costReduc);
+      
+      return Math.max(1, Math.floor(baseCost));
+    }
+
+    function getSubUpgrade1Cost() {
+      const level = game.subUpgrades[0] || 0;
+      return Math.floor(Math.pow(1.5, level));
+    }
+
+    function getU6Cost() {
+      const level = game.upgrades[5] || 0;
+      return Math.floor(Math.pow(3, level));
+    }
+
+    function getU6Multiplier() {
+      const level = game.upgrades[5] || 0;
+      return 1 + level * 0.5;
+    }
+
+    function getMaxRank() {
+      return game.milestonesUnlocked.includes(10) ? 10 : 6;
+    }
+
+    function getNextRankRequirement() {
+      const maxRank = getMaxRank();
+      if (game.rank >= maxRank) return Infinity;
+      
+      if (game.rank < 3) {
+        return Math.floor(RANK_REQUIREMENT * Math.pow(1.5, game.rank));
+      }
+      if (game.rank === 3) {
+        return Math.floor(RANK_REQUIREMENT * Math.pow(1.5, 2) * 100);
+      }
+      if (game.rank >= 4 && game.rank < 6) {
+        const pre4 = RANK_REQUIREMENT * Math.pow(1.5, 2) * 100;
+        return Math.floor(pre4 * Math.pow(2, game.rank - 3));
+      }
+      // Rank 6+
+      const pre7 = RANK_REQUIREMENT * Math.pow(1.5, 2) * 100 * Math.pow(2, 3);
+      if (game.rank === 6) {
+        return Math.floor(pre7 * 500);
+      }
+      // Rank 7+
+      return Math.floor(pre7 * 500 * Math.pow(5, game.rank - 6));
+    }
+
+    function getStarCost(starNum) {
+      let cost;
+      if (starNum <= 5) {
+        cost = starNum * STAR_COST;
+      } else {
+        cost = starNum * STAR_COST * 130;
+      }
+      // Apply star level cost reduction
+      const reduc = getStarLevelCostReduc();
+      return Math.floor(cost * (1 - reduc));
+    }
+
+    function getCumulativeStarCost(starNum) {
+      let total = 0;
+      for (let i = 1; i <= starNum; i++) {
+        total += getStarCost(i);
+      }
+      return total;
+    }
+
+    function getStarsToCreate() {
+      if (game.stardust < getStarCost(1)) return 0;
+      
+      let stars = 0;
+      let totalCost = 0;
+      
+      while (true) {
+        const cost = getStarCost(stars + 1);
+        totalCost += cost;
+        if (game.stardust >= totalCost) {
+          stars++;
+        } else {
+          break;
+        }
+      }
+      
+      return stars;
+    }
+
+    function buyUpgrade(index) {
+      if (index === 5) {
+        const cost = getU6Cost();
+        if (game.stars >= cost) {
+          game.stars -= cost;
+          game.upgrades[5] = (game.upgrades[5] || 0) + 1;
+          render();
+        }
+        return;
+      }
+      const cost = getUpgradeCost(index);
+      if (game.stardust >= cost) {
+        game.stardust -= cost;
+        game.upgrades[index]++;
+        render();
+      }
+    }
+
+    function buySubUpgrade1() {
+      const cost = getSubUpgrade1Cost();
+      if (game.stars >= cost) {
+        game.stars -= cost;
+        game.subUpgrades[0]++;
+        render();
+      }
+    }
+
+    function buySubUpgrade2() {
+      const cost = getSubUpgrade2Cost();
+      if (game.stars >= cost) {
+        game.stars -= cost;
+        game.subUpgrades[1]++;
+        render();
+      }
+    }
+
+    function rankUp() {
+      const req = getNextRankRequirement();
+      if (game.stardust >= req) {
+        game.rank++;
+        game.stardust = 0;
+        game.upgrades = [0, 0, 0, 0, 0, game.upgrades[5] || 0];
+        render();
+        showSaveStatus('Rank up successful!');
+      }
+    }
+
+    function createStars() {
+      const starsToCreate = getStarsToCreate();
+      if (starsToCreate > 0) {
+        // Apply star level multiplier
+        const starMult = game.starLevel > 0 ? getStarLevelMult() : 1;
+        const actualStars = Math.floor(starsToCreate * starMult);
+        const newTotalStars = game.stars + actualStars;
+        
+        // Check and unlock milestones
+        for (let m of STAR_MILESTONES) {
+          if (newTotalStars >= m.stars && !game.milestonesUnlocked.includes(m.stars)) {
+            game.milestonesUnlocked.push(m.stars);
+          }
+        }
+        
+        // Unlock auto U1 at 1 star milestone, auto U2 at 10 stars
+        if (newTotalStars >= 1 && !game.autoU1) {
+          game.autoU1 = true;
+        }
+        if (newTotalStars >= 10 && !game.autoU2) {
+          game.autoU2 = true;
+        }
+        
+        game.stars = newTotalStars;
+        game.starsUnlocked = true;
+        game.stardust = 0;
+        game.upgrades = [0, 0, 0, 0, 0, game.upgrades[5] || 0];
+        game.rank = 0;
+        // subUpgrades and research are permanent - don't reset
+        render();
+        showSaveStatus(`Created ${actualStars} star(s)!`);
+      }
+    }
+
+    function showSaveStatus(msg) {
+      const el = document.getElementById('saveStatus');
+      el.textContent = msg;
+      setTimeout(() => el.textContent = '', 3000);
+    }
+
+    function save() {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(game));
+      showSaveStatus('Game saved!');
+    }
+
+    function load() {
+      const saved = localStorage.getItem(SAVE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        game.stardust = data.stardust || 0;
+        game.rank = data.rank || 0;
+        game.stars = data.stars || 0;
+        game.starsUnlocked = data.starsUnlocked || false;
+        game.milestonesUnlocked = data.milestonesUnlocked || [];
+        game.autoU1 = data.autoU1 || false;
+        game.autoU1Enabled = data.autoU1Enabled || false;
+        game.autoU2 = data.autoU2 || false;
+        game.autoU2Enabled = data.autoU2Enabled || false;
+        // Fallback: if they had milestone 1 but autoU1 not saved, enable it
+        if (game.milestonesUnlocked.includes(1) && !game.autoU1) {
+          game.autoU1 = true;
+        }
+        // Fallback: if autoU1 unlocked but autoU1Enabled not saved, enable it by default
+        if (game.autoU1 && !data.hasOwnProperty('autoU1Enabled')) {
+          game.autoU1Enabled = true;
+        }
+        // Fallback: if they had milestone 10 but autoU2 not saved, enable it
+        if (game.milestonesUnlocked.includes(10) && !game.autoU2) {
+          game.autoU2 = true;
+        }
+        // Fallback: if autoU2 unlocked but autoU2Enabled not saved, enable it by default
+        if (game.autoU2 && !data.hasOwnProperty('autoU2Enabled')) {
+          game.autoU2Enabled = true;
+        }
+        // Fallback: if they have stars but no milestone 1, unlock it
+        if (game.stars >= 1 && !game.milestonesUnlocked.includes(1)) {
+          game.milestonesUnlocked.push(1);
+        }
+        // Fallback: if they have 10+ stars but no milestone 10, unlock it
+        if (game.stars >= 10 && !game.milestonesUnlocked.includes(10)) {
+          game.milestonesUnlocked.push(10);
+        }
+        game.upgrades = data.upgrades || [0, 0, 0, 0, 0, 0];
+        game.subUpgrades = data.subUpgrades || [0];
+        game.research = data.research || [0, 0];
+        game.starLevel = data.starLevel || 0;
+        while (game.upgrades.length < 6) game.upgrades.push(0);
+        while (game.subUpgrades.length < 1) game.subUpgrades.push(0);
+        while (game.research.length < 2) game.research.push(0);
+      }
+    }
+
+    function exportSave() {
+      const blob = new Blob([JSON.stringify(game)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'stardust-save.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showSaveStatus('Save exported!');
+    }
+
+    function importSave(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          game.stardust = data.stardust || 0;
+          game.rank = data.rank || 0;
+          game.stars = data.stars || 0;
+          game.starsUnlocked = data.starsUnlocked || false;
+          game.milestonesUnlocked = data.milestonesUnlocked || [];
+          game.autoU1 = data.autoU1 || false;
+          game.autoU1Enabled = data.autoU1Enabled || false;
+          game.autoU2 = data.autoU2 || false;
+          game.autoU2Enabled = data.autoU2Enabled || false;
+          // Fallback: if they have stars but no milestone 1, unlock it
+          if (game.stars >= 1 && !game.milestonesUnlocked.includes(1)) {
+            game.milestonesUnlocked.push(1);
+          }
+          // Fallback: if they have 10+ stars but no milestone 10, unlock it
+          if (game.stars >= 10 && !game.milestonesUnlocked.includes(10)) {
+            game.milestonesUnlocked.push(10);
+          }
+          game.upgrades = data.upgrades || [0, 0, 0, 0, 0, 0];
+          game.subUpgrades = data.subUpgrades || [0];
+          game.research = data.research || [0, 0];
+          game.starLevel = data.starLevel || 0;
+          while (game.upgrades.length < 6) game.upgrades.push(0);
+          while (game.subUpgrades.length < 1) game.subUpgrades.push(0);
+          while (game.research.length < 2) game.research.push(0);
+          render();
+          showSaveStatus('Save imported!');
+        } catch {
+          showSaveStatus('Invalid save file!');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function hardReset() {
+      if (confirm('Are you sure you want to hard reset? This will delete ALL progress!')) {
+        game = { stardust: 0, rank: 0, stars: 0, starsUnlocked: false, milestonesUnlocked: [], autoU1: false, autoU1Enabled: false, autoU2: false, autoU2Enabled: false, upgrades: [0, 0, 0, 0, 0, 0], subUpgrades: [0], research: [0, 0], starLevel: 0 };
+        localStorage.removeItem(SAVE_KEY);
+        render();
+        showSaveStatus('Game reset!');
+      }
+    }
+
+    function render() {
+      document.getElementById('stardust').textContent = format(game.stardust);
+      document.getElementById('gps').textContent = format(getGenerationPerSecond());
+      document.getElementById('rank').textContent = format(game.rank);
+      document.getElementById('stars').textContent = format(game.stars);
+      
+      document.getElementById('u1Level').textContent = format(game.upgrades[0]);
+      document.getElementById('u2Level').textContent = format(game.upgrades[1]);
+      document.getElementById('u3Level').textContent = format(game.upgrades[2]);
+      document.getElementById('u4Level').textContent = format(game.upgrades[3]);
+      document.getElementById('u5Level').textContent = format(game.upgrades[4]);
+      document.getElementById('u6Level').textContent = format(game.upgrades[5] || 0);
+
+      const u1Base = game.upgrades[0];
+      const researchMult = (game.research[0] || 0) > 0 ? 2 : 1;
+      const subMult = getSub1Multiplier();
+      const u1Total = u1Base * researchMult * subMult;
+      document.getElementById('u1Bonus').textContent = `Current: +${format(u1Total)} total`;
+      const u2Bonus = Math.round((game.upgrades[1] || 0) * 50);
+      document.getElementById('u2Bonus').textContent = `Current: +${format(u2Bonus)}% mult`;
+
+      document.getElementById('sub1Level').textContent = format(game.subUpgrades[0]);
+      document.getElementById('sub1Bonus').textContent = `Current: x${getSub1Multiplier().toFixed(2)}`;
+
+      document.getElementById('u3Bonus').textContent = `Current: ÷${format(getU3CostDivisor())} cost`;
+      
+      const u4Bonus = Math.round((game.upgrades[3] || 0) * 25);
+      document.getElementById('u4Bonus').textContent = `Current: +${format(u4Bonus)}% base`;
+      
+      const u5Bonus = Math.round((game.upgrades[4] || 0) * 50);
+      document.getElementById('u5Bonus').textContent = `Current: +${format(u5Bonus)}% mult`;
+
+      document.getElementById('u6Bonus').textContent = `Current: x${getU6Multiplier().toFixed(2)}`;
+      
+      const costs = [0,1,2,3,4].map(i => getUpgradeCost(i));
+      document.getElementById('buyU1').textContent = `Buy (Cost: ${format(costs[0])})`;
+      document.getElementById('buyU2').textContent = `Buy (Cost: ${format(costs[1])})`;
+      document.getElementById('buyU3').textContent = `Buy (Cost: ${format(costs[2])})`;
+      document.getElementById('buyU4').textContent = `Buy (Cost: ${format(costs[3])})`;
+      document.getElementById('buyU5').textContent = `Buy (Cost: ${format(costs[4])})`;
+      
+      const u6Cost = getU6Cost();
+      document.getElementById('buyU6').textContent = `Buy (Cost: ${format(u6Cost)} ★)`;
+      
+      // Show auto status on U1 (only if both unlocked AND enabled)
+      if (game.autoU1 && game.autoU1Enabled) {
+        document.getElementById('buyU1').textContent = `Auto ${format(costs[0])} (Lvl ${format(game.upgrades[0])})`;
+        document.getElementById('buyU1').disabled = true;
+      } else {
+        document.getElementById('buyU1').textContent = `Buy (Cost: ${format(costs[0])})`;
+        document.getElementById('buyU1').disabled = game.stardust < costs[0];
+      }
+      document.getElementById('buyU2').disabled = game.stardust < costs[1];
+      document.getElementById('buyU3').disabled = game.stardust < costs[2];
+      document.getElementById('buyU4').disabled = game.stardust < costs[3];
+      document.getElementById('buyU5').disabled = game.stardust < costs[4];
+      document.getElementById('buyU6').disabled = game.stars < u6Cost;
+
+      // Subupgrade 1
+      const sub1Cost = getSubUpgrade1Cost();
+      document.getElementById('buySub1').textContent = `Buy (Cost: ${format(sub1Cost)} ★)`;
+      document.getElementById('buySub1').disabled = game.stars < sub1Cost;
+
+      // Show/hide U6 (unlocked at star milestone 1)
+      const u6Element = document.getElementById('u6');
+      if (game.milestonesUnlocked.includes(1)) {
+        u6Element.classList.remove('locked');
+        u6Element.classList.add('unlocked');
+      } else {
+        u6Element.classList.remove('unlocked');
+        u6Element.classList.add('locked');
+      }
+
+      // Show research in tab if stars unlocked
+      const researchSection = document.getElementById('researchSection');
+      if (game.starsUnlocked) {
+        researchSection.style.display = 'block';
+        const research0Level = game.research[0] || 0;
+        document.getElementById('research0Level').textContent = research0Level;
+        document.getElementById('research0Bonus').textContent = research0Level > 0 ? 'MAX: 2x U1 effect' : '2x U1 effect';
+        const research0Cost = 3;
+        const isMaxed = research0Level >= 1;
+        document.getElementById('buyResearch0').textContent = isMaxed ? 'MAXED' : `Research (Cost: ${format(research0Cost)} ★)`;
+        document.getElementById('buyResearch0').disabled = isMaxed || game.stars < research0Cost;
+        
+        // Second research (unlocks at 10 stars)
+        const research2 = document.getElementById('research2');
+        const research1Level = game.research[1] || 0;
+        if (game.milestonesUnlocked.includes(10)) {
+          research2.style.display = 'block';
+          document.getElementById('research1Level').textContent = research1Level;
+          document.getElementById('research1Bonus').textContent = research1Level > 0 ? 'MAX: Unlocks Star Level' : 'Unlocks Star Level';
+          const research1Cost = 25;
+          const isMaxed1 = research1Level >= 1;
+          document.getElementById('buyResearch1').textContent = isMaxed1 ? 'MAXED' : `Research (Cost: ${format(research1Cost)} ★)`;
+          document.getElementById('buyResearch1').disabled = isMaxed1 || game.stars < research1Cost;
+          
+          // Show Star Level tab only after buying Research 2
+          if (research1Level >= 1) {
+            document.getElementById('starLevelTab').style.display = 'inline-block';
+            document.getElementById('starLevel').textContent = format(game.starLevel || 0);
+            document.getElementById('starLevelBonus').textContent = `x${getStarLevelMult().toFixed(1)} stars, +${Math.round((game.starLevel || 0) * 50)}% stardust, -${Math.round((game.starLevel || 0) * 10)}% star cost`;
+            const starLevelCost = getStarLevelCost();
+            document.getElementById('buyStarLevel').textContent = `Level Up (Cost: ${format(starLevelCost)})`;
+            document.getElementById('buyStarLevel').disabled = game.stardust < starLevelCost;
+          } else {
+            document.getElementById('starLevelTab').style.display = 'none';
+          }
+        } else {
+          research2.style.display = 'none';
+          document.getElementById('starLevelTab').style.display = 'none';
+        }
+      } else {
+        researchSection.style.display = 'none';
+        document.getElementById('starLevelTab').style.display = 'none';
+      }
+
+      // Show/hide rank section
+      const rankSection = document.getElementById('rankSection');
+      if (game.stardust >= RANK_REQUIREMENT || game.rank > 0) {
+        rankSection.classList.add('visible');
+      }
+      
+      const nextRankReq = getNextRankRequirement();
+      const maxRank = getMaxRank();
+      if (nextRankReq === Infinity) {
+        document.getElementById('rankReq').textContent = 'MAX';
+        document.getElementById('rankUpBtn').textContent = 'MAX';
+      } else {
+        document.getElementById('rankReq').textContent = format(nextRankReq);
+        document.getElementById('rankUpBtn').textContent = 'Rank Up';
+      }
+      document.getElementById('rankUpBtn').disabled = game.stardust < nextRankReq || nextRankReq === Infinity;
+
+      // Stars section (unlocks at rank 6, but stays permanent)
+      const starsSection = document.getElementById('starsSection');
+      if (game.starsUnlocked || game.rank >= 6) {
+        game.starsUnlocked = true;
+        starsSection.classList.add('visible');
+        
+        // Calculate costs for next stars
+        let starsInfo = '';
+        const starsToCreate = getStarsToCreate();
+        
+        if (starsToCreate > 0) {
+          const totalStars = starsToCreate + 1;
+          const cumulativeCost = getCumulativeStarCost(totalStars);
+          starsInfo = `${format(cumulativeCost)}`;
+        } else {
+          // Show cost for first star when nothing ready
+          starsInfo = `${format(getStarCost(1))}`;
+        }
+        
+        document.getElementById('nextStarAt').textContent = starsInfo;
+        
+        document.getElementById('starsToCreate').textContent = format(starsToCreate);
+        document.getElementById('createStarBtn').disabled = starsToCreate <= 0;
+      } else {
+        starsSection.classList.remove('visible');
+      }
+
+      // Show milestones if player has stars
+      const milestonesSection = document.getElementById('milestonesSection');
+      if (game.stars > 0 || game.milestonesUnlocked.length > 0) {
+        milestonesSection.classList.add('visible');
+      } else {
+        milestonesSection.classList.remove('visible');
+      }
+      
+      // Render milestones
+      const milestonesList = document.getElementById('milestonesList');
+      milestonesList.innerHTML = STAR_MILESTONES.map(m => {
+        const unlocked = game.milestonesUnlocked.includes(m.stars);
+        return `<span class="milestone ${unlocked ? 'unlocked' : 'locked'}">★${m.stars}: ${m.name}</span>`;
+      }).join('');
+
+      // Show/hide and update autobuyer toggle on U1
+      const u1Autobuyer = document.getElementById('u1Autobuyer');
+      const autoU1Toggle = document.getElementById('autoU1Toggle');
+      if (game.autoU1) {
+        u1Autobuyer.style.display = 'flex';
+        autoU1Toggle.disabled = false;
+        autoU1Toggle.checked = game.autoU1Enabled;
+      } else {
+        u1Autobuyer.style.display = 'none';
+      }
+
+      // Show/hide and update autobuyer toggle on U2
+      const u2Autobuyer = document.getElementById('u2Autobuyer');
+      const autoU2Toggle = document.getElementById('autoU2Toggle');
+      if (game.autoU2) {
+        u2Autobuyer.style.display = 'flex';
+        autoU2Toggle.disabled = false;
+        autoU2Toggle.checked = game.autoU2Enabled;
+      } else {
+        u2Autobuyer.style.display = 'none';
+      }
+
+      // Update rank rewards
+      document.getElementById('currentRank').textContent = format(game.rank);
+      
+      const nextRankReward = RANK_REWARDS[game.rank + 1];
+      if (nextRankReward) {
+        document.getElementById('rankRewards').textContent = `Next: ${nextRankReward.name} - ${nextRankReward.desc}`;
+      } else {
+        document.getElementById('rankRewards').textContent = '';
+      }
+
+      // Show/hide upgrades
+      document.getElementById('u3').classList.toggle('unlocked', game.rank >= 1);
+      document.getElementById('u3').classList.toggle('locked', game.rank < 1);
+      document.getElementById('u4').classList.toggle('unlocked', game.rank >= 3);
+      document.getElementById('u4').classList.toggle('locked', game.rank < 3);
+      document.getElementById('u5').classList.toggle('unlocked', game.rank >= 5);
+      document.getElementById('u5').classList.toggle('locked', game.rank < 5);
+
+      // Subupgrade 1 (unlocks at 1 star, stays visible)
+      document.getElementById('sub1').style.display = (game.stars >= 1 || game.subUpgrades[0] > 0) ? 'block' : 'none';
+    }
+
+    // Event listeners
+    document.getElementById('buyU1').addEventListener('click', () => buyUpgrade(0));
+    document.getElementById('buyU2').addEventListener('click', () => buyUpgrade(1));
+    document.getElementById('buyU3').addEventListener('click', () => buyUpgrade(2));
+    document.getElementById('buyU4').addEventListener('click', () => buyUpgrade(3));
+    document.getElementById('buyU5').addEventListener('click', () => buyUpgrade(4));
+    document.getElementById('buyU6').addEventListener('click', () => buyUpgrade(5));
+    document.getElementById('buySub1').addEventListener('click', buySubUpgrade1);
+    document.getElementById('buyResearch0').addEventListener('click', () => buyResearch(0));
+    document.getElementById('buyResearch1').addEventListener('click', () => buyResearch(1));
+    document.getElementById('buyStarLevel').addEventListener('click', buyStarLevel);
+    document.getElementById('rankUpBtn').addEventListener('click', rankUp);
+    document.getElementById('createStarBtn').addEventListener('click', createStars);
+    document.getElementById('saveBtn').addEventListener('click', save);
+    document.getElementById('exportBtn').addEventListener('click', exportSave);
+    document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+    document.getElementById('importFile').addEventListener('change', (e) => {
+      if (e.target.files[0]) importSave(e.target.files[0]);
+    });
+    document.getElementById('hardResetBtn').addEventListener('click', hardReset);
+    document.getElementById('autoU1Toggle').addEventListener('change', (e) => {
+      game.autoU1Enabled = e.target.checked;
+    });
+    document.getElementById('autoU2Toggle').addEventListener('change', (e) => {
+      game.autoU2Enabled = e.target.checked;
+    });
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Game loop
+    load();
+    render();
+
+    setInterval(() => {
+      const rank7Boost = game.rank >= 7 ? Math.max(1.5, 2 + game.stars / 5) : 1;
+      const starLevelBoost = game.starLevel > 0 ? getStarLevelMult() : 1;
+      game.stardust += getGenerationPerSecond() / 10 * getU6Multiplier() * rank7Boost * starLevelBoost;
+      
+      // Auto level U1 if enabled (consumes stardust)
+      if (game.autoU1 && game.autoU1Enabled) {
+        const cost = getUpgradeCost(0);
+        if (game.stardust >= cost) {
+          game.stardust -= cost;
+          game.upgrades[0]++;
+        }
+      }
+      
+      // Auto level U2 if enabled (consumes stardust)
+      if (game.autoU2 && game.autoU2Enabled) {
+        const cost = getUpgradeCost(1);
+        if (game.stardust >= cost) {
+          game.stardust -= cost;
+          game.upgrades[1]++;
+        }
+      }
+      
+      render();
+    }, 100);
+
+    setInterval(() => {
+      save();
+    }, 30000);
+  </script>
+</body>
+</html>
